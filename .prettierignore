@@ -1,0 +1,7 @@
+# Playwright CLI expects a bare function expression; Prettier adds a leading semicolon.
+tests/*-*.cjs
+tests/fixtures/invalid.json
+src-tauri/gen/
+src-tauri/target/
+dist/
+output/

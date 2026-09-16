@@ -1,0 +1,3 @@
+{
+  "overrides": [{ "files": "tests/browser-*.cjs", "options": { "semi": false } }]
+}

@@ -10,8 +10,9 @@
     "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1 --port 1420",
     "tauri": "tauri",
-    "desktop": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 dev",
+    "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 build",
+    "desktop:test": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 test"
   },
   "dependencies": {
     "@fontsource/anton": "^5.2.7",
@@ -28,6 +29,8 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "5.0.4",
+    "axe-core": "4.11.1",
+    "prettier": "3.6.2",
     "typescript": "^5.9.3",
     "vite": "7.3.6",
     "vitest": "4.1.11"
