@@ -4,7 +4,9 @@ A local-first desktop workspace for AI agent skills and instructions. Built with
 
 ## Open the app
 
-Double-click **Start Skill Archive.cmd**. After a release build this opens the standalone executable without Node or a development server.
+Run `src-tauri/target/release/bundle/nsis/Skill Archive_0.1.0_x64-setup.exe` to install the app for your Windows user. Then open Start, search for **Skill Archive**, and launch it. Right-click the Start result and choose **Pin to taskbar** for everyday access.
+
+The installer creates a Start shortcut targeting `%LOCALAPPDATA%\Skill Archive\skill-archive.exe` with app identity `com.skillarchive.desktop`. The repository's **Start Skill Archive.cmd** remains a development convenience for opening the release executable without Node or a development server.
 
 Windows outputs:
 
@@ -12,6 +14,10 @@ Windows outputs:
 - `src-tauri/target/release/bundle/nsis/Skill Archive_0.1.0_x64-setup.exe` — per-user installer.
 
 The app uses the installed Microsoft WebView2 runtime. The installer is locally built and unsigned.
+
+The desktop app opens fitted to the screen without a separate Windows title bar. Drag empty space in its header to move it; double-click to fit/restore, or use the fit icon at the top right. **Window options** (the three dots) offers minimize and close. Drag window edges to resize. The workspace scrolls beneath the fixed header; the Atlas has its own labeled sideways-scrolling map.
+
+The opening page keeps search and the skill list in focus. **Filters** reveals status, category and sort. Select a skill to show its preview, then use **Hide preview** to return to the wider list. Existing saved navigation is restored.
 
 ## Develop
 
@@ -79,11 +85,14 @@ npx --yes --package @playwright/cli playwright-cli -s=skillarchive open http://1
 npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-smoke.cjs
 npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-behavior.cjs
 npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-accessibility.cjs
+npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-layout.cjs
 ```
 
 These snippets use isolated browser contexts. They must remain bare function expressions because the CLI wraps their text; they are excluded from Prettier's semicolon insertion. Screenshots and test downloads go to ignored `output/playwright/`. Accessibility scans complement manual focus, overflow and screenshot checks; they are not a complete accessibility certification.
 
 Native smoke verification uses `tests/native-smoke.cjs` against a development-only WebView2 debugging port 9233. That port is enabled only by a temporary environment variable during QA, not by the packaged configuration or normal launcher. The test restores the pre-test native workspace after exercising saves/import/export.
+
+`tests/native-window.cjs` checks fit/restore, window-option focus and narrow native WebView layout immediately after a QA launch. Native snippets select the `http://tauri.localhost` page explicitly: a WebView download flyout can create another page ahead of the app. Viewport emulation is cleared after narrow checks; actual OS dragging and resizing require the real desktop window.
 
 ## Continue development
 

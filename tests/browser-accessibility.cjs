@@ -32,11 +32,11 @@ async (page) => {
       })
     }
     await audit("desktop-index")
-    await test.getByRole('button', {name:'Atlas 02',exact:true}).click()
+    await test.getByRole('button', {name:'Atlas',exact:true}).click()
     await audit('atlas')
-    await test.getByRole('button', {name:'Posters 03',exact:true}).click()
+    await test.getByRole('button', {name:'Posters',exact:true}).click()
     await audit('posters')
-    await test.getByRole('button', {name:'Index 01',exact:true}).click()
+    await test.getByRole('button', {name:'Index',exact:true}).click()
     await test.getByRole('button', {name:'Open command palette',exact:true}).click()
     await audit('command-palette')
     await test.keyboard.press('Escape')
@@ -46,11 +46,12 @@ async (page) => {
     await test.getByRole("button", { name: "New skill", exact: true }).click()
     await audit("editor-dialog")
     await test.keyboard.press("Escape")
+    await test.locator('.skill-name').first().click()
     await test
       .getByRole("button", { name: "Open full dossier", exact: true })
       .click()
     await audit("full-dossier")
-    await test.getByRole("button", { name: "Index 01", exact: true }).click()
+    await test.getByRole("button", { name: "Index", exact: true }).click()
     await test.setViewportSize({ width: 390, height: 844 })
     await audit("mobile-index")
     await test

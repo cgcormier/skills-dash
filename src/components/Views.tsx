@@ -144,7 +144,17 @@ export function Atlas({ skills, selectedId, onSelect, onOpen }: ViewProps) {
         <span>Connections, made explicit.</span>
         <span>{edges.length} links in this view</span>
       </div>
-      <div className="atlas-scroll">
+      <p className="atlas-scroll-hint" id="atlas-scroll-hint">
+        Scroll sideways to explore connections. Focus the map and use the arrow
+        keys, or Tab between skills.
+      </p>
+      <div
+        className="atlas-scroll"
+        role="region"
+        aria-label="Relationship map"
+        aria-describedby="atlas-scroll-hint"
+        tabIndex={0}
+      >
         <div className="atlas-canvas" style={{ width, height }}>
           <svg
             className="atlas-lines"

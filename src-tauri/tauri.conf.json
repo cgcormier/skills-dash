@@ -10,7 +10,20 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "label": "main", "title": "Skill Archive — A working collection", "width": 1512, "height": 982, "minWidth": 375, "minHeight": 600, "backgroundColor": "#151514" }],
+    "windows": [
+      {
+        "label": "main",
+        "title": "Skill Archive — A working collection",
+        "width": 1100,
+        "height": 720,
+        "minWidth": 375,
+        "minHeight": 600,
+        "decorations": false,
+        "resizable": true,
+        "maximized": true,
+        "backgroundColor": "#151514"
+      }
+    ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'",
       "capabilities": ["main"]

@@ -14,7 +14,7 @@ function read(): ViewState {
     view: ["index", "atlas", "posters", "dossier"].includes(p.get("view") || "")
       ? (p.get("view") as ViewState["view"])
       : "index",
-    selected: p.get("skill") || "interface-design",
+    selected: p.get("skill") || "",
     query: p.get("q") || "",
     category: p.get("category") || "",
     status: ["active", "draft", "archived"].includes(p.get("status") || "")

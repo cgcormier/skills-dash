@@ -1,6 +1,6 @@
 async (page) => {
   const browser = await page.context().browser().browserType().connectOverCDP('http://127.0.0.1:9233')
-  const p = browser.contexts()[0].pages()[0]
+  const p = browser.contexts()[0].pages().find(p => p.url().startsWith('http://tauri.localhost'))
   const original = await p.evaluate(()=>window.__TAURI_INTERNALS__.invoke('load_workspace'))
   const originalBackup = await p.evaluate(()=>window.__TAURI_INTERNALS__.invoke('recover_workspace'))
   const count = JSON.parse(original).skills.length

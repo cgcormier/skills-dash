@@ -39,6 +39,7 @@ import { Modal } from "./components/Modal";
 import { SkillEditor } from "./components/SkillEditor";
 import { Dossier } from "./components/Dossier";
 import { Atlas, Posters, SkillIndex } from "./components/Views";
+import { WindowControls } from "./components/WindowControls";
 
 type Preferences = {
   colorway: "red" | "orange" | "xray";
@@ -81,6 +82,7 @@ export default function App() {
   const [settings, setSettings] = useState(false);
   const [help, setHelp] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [pendingImport, setPendingImport] = useState<{
     text: string;
@@ -233,14 +235,21 @@ export default function App() {
       const typing =
         ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
         target.isContentEditable;
-      const modalOpen = editor || palette || settings || help || pendingImport;
+      const modalOpen =
+        editor ||
+        palette ||
+        settings ||
+        help ||
+        pendingImport ||
+        document.querySelector("dialog[open]");
       if (
         (event.ctrlKey || event.metaKey) &&
         event.key.toLowerCase() === "k" &&
         !editor &&
         !settings &&
         !help &&
-        !pendingImport
+        !pendingImport &&
+        (!document.querySelector("dialog[open]") || palette)
       ) {
         event.preventDefault();
         setPalette((value) => !value);
@@ -368,6 +377,7 @@ export default function App() {
       data-colorway={preferences.colorway}
       data-effects={preferences.effects}
       data-density={preferences.density}
+      data-native={isDesktop()}
     >
       <a href="#workspace" className="skip-link">
         Skip to workspace
@@ -413,11 +423,6 @@ export default function App() {
             ARCHIVE<span className="brand-dot">®</span>
           </span>
         </a>
-        <div className="sidebar-edition">
-          A WORKING COLLECTION
-          <br />
-          <span>EST. 2026 / LOCAL FIRST</span>
-        </div>
         <button
           className="command-launcher"
           onClick={() => {
@@ -507,12 +512,6 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-manifesto">
-            LESS FRICTION.
-            <br />
-            MORE <span>INSTINCT.</span>
-            <ArrowUpRight size={25} />
-          </div>
           <button
             className="nav-item"
             onClick={() => {
@@ -541,8 +540,19 @@ export default function App() {
         </div>
       </div>
       <div className="application-body" inert={navOpen}>
-        <header className="topbar">
-          <div className="breadcrumb">
+        <header
+          className="topbar"
+          data-tauri-drag-region={isDesktop() ? true : undefined}
+          title={
+            isDesktop()
+              ? "Drag to move · Double-click to fit or restore"
+              : undefined
+          }
+        >
+          <div
+            className="breadcrumb"
+            data-tauri-drag-region={isDesktop() ? true : undefined}
+          >
             <button
               className="icon-button mobile-menu"
               onClick={() => setNavOpen(!navOpen)}
@@ -595,6 +605,7 @@ export default function App() {
               <Command size={14} />
               <kbd>K</kbd>
             </button>
+            {isDesktop() && <WindowControls notify={notify} />}
           </div>
         </header>
         <main id="workspace" tabIndex={-1} className="workspace">
@@ -634,43 +645,24 @@ export default function App() {
             <>
               {view.view !== "dossier" && (
                 <section
-                  className="masthead"
+                  className="collection-heading"
                   aria-label="Skill archive introduction"
                 >
-                  <div className="masthead-copy">
-                    <div className="eyebrow">
-                      YOUR KNOWLEDGE. GIVEN INSTRUCTIONS.
-                    </div>
+                  <div>
                     <h1>
-                      THE SKILL
-                      <br />
-                      <span>ARCHIVE</span>
-                      <span className="title-period">.</span>
+                      {view.category ||
+                        (view.collection === "pinned"
+                          ? "Pinned skills"
+                          : view.status === "draft"
+                            ? "Drafts"
+                            : "Your skills")}
                     </h1>
-                    <div className="masthead-caption">
-                      A living collection of what your agents can do.
-                      <span>COLLECT. REFINE. REPEAT.</span>
-                    </div>
-                  </div>
-                  <div className="masthead-art" aria-hidden="true">
-                    <img src="/images/eye.jpg" alt="" />
-                    <div className="art-label">
-                      FIG. 01
-                      <br />
-                      HUMAN INTENT
-                      <br />
-                      MACHINE INSTINCT
-                    </div>
-                    <span className="art-cross">+</span>
-                    <span className="art-number">001—∞</span>
-                  </div>
-                  <div className="masthead-side" aria-hidden="true">
-                    AN INDEX OF POSSIBILITIES / VOL. 01
+                    <p>Find an instruction. Make it your own.</p>
                   </div>
                 </section>
               )}
               <div
-                className={`workbench ${view.view === "dossier" ? "dossier-workbench" : ""}`}
+                className={`workbench ${view.view === "dossier" ? "dossier-workbench" : dossierProps ? "with-inspector" : ""}`}
               >
                 <section
                   className="collection-panel"
@@ -684,7 +676,7 @@ export default function App() {
                           ["atlas", Network, "Atlas"],
                           ["posters", Grid2X2, "Posters"],
                         ] as const
-                      ).map(([key, Icon, label], index) => (
+                      ).map(([key, Icon, label]) => (
                         <button
                           key={key}
                           className={view.view === key ? "active" : ""}
@@ -693,7 +685,6 @@ export default function App() {
                         >
                           <Icon size={15} />
                           <span>{label}</span>
-                          <small>0{index + 1}</small>
                         </button>
                       ))}
                     </div>
@@ -745,10 +736,30 @@ export default function App() {
                             <kbd>/</kbd>
                           )}
                         </div>
+                        <button
+                          className="secondary filter-toggle"
+                          aria-expanded={filtersOpen}
+                          aria-controls="collection-filters"
+                          onClick={() => setFiltersOpen(!filtersOpen)}
+                        >
+                          <SlidersHorizontal size={14} aria-hidden="true" />{" "}
+                          Filters
+                          {(view.status ||
+                            view.category ||
+                            view.sort !== "title") && (
+                            <span className="status-dot" />
+                          )}
+                        </button>
+                      </div>
+                      <div
+                        id="collection-filters"
+                        className="filter-options"
+                        hidden={!filtersOpen}
+                      >
                         <label className="filter-select">
-                          <SlidersHorizontal size={14} />
-                          <span className="sr-only">Filter status</span>
+                          <span>Status</span>
                           <select
+                            aria-label="Filter status"
                             value={view.status}
                             onChange={(e) =>
                               setView({ status: e.target.value })
@@ -760,29 +771,23 @@ export default function App() {
                             <option value="archived">Archived</option>
                           </select>
                         </label>
-                      </div>
-                      <div className="collection-subhead">
-                        <div>
-                          <span className="eyebrow">
-                            {view.category ||
-                              (view.collection === "pinned"
-                                ? "PINNED COLLECTION"
-                                : "COMPLETE COLLECTION")}
-                          </span>
-                          <span className="record-count">
-                            {String(visible.length).padStart(2, "0")} RECORDS
-                          </span>
-                          {filtersActive && (
-                            <button
-                              className="clear-filters"
-                              onClick={clearFilters}
-                            >
-                              Clear filters <X size={11} />
-                            </button>
-                          )}
-                        </div>
-                        <label>
-                          Sort:{" "}
+                        <label className="filter-select">
+                          <span>Category</span>
+                          <select
+                            aria-label="Filter category"
+                            value={view.category}
+                            onChange={(e) =>
+                              setView({ category: e.target.value })
+                            }
+                          >
+                            <option value="">All categories</option>
+                            {categories.map((category) => (
+                              <option key={category}>{category}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="filter-select">
+                          <span>Sort</span>
                           <select
                             aria-label="Sort skills"
                             value={view.sort}
@@ -796,6 +801,23 @@ export default function App() {
                             <option value="updated">Recently updated</option>
                           </select>
                         </label>
+                      </div>
+                      <div className="collection-subhead">
+                        <div>
+                          <span className="record-count">
+                            {visible.length} skills
+                            {view.status ? ` · ${view.status}` : ""}
+                            {view.category ? ` · ${view.category}` : ""}
+                          </span>
+                          {filtersActive && (
+                            <button
+                              className="clear-filters"
+                              onClick={clearFilters}
+                            >
+                              Clear filters <X size={11} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {visible.length ? (
                         <>
@@ -881,10 +903,6 @@ export default function App() {
                     </>
                   )}
                   <div className="workspace-tools">
-                    <span>
-                      <span className="status-dot" /> YOUR COLLECTION, ON YOUR
-                      DEVICE.
-                    </span>
                     <div>
                       <button onClick={() => importRef.current?.click()}>
                         <Upload size={14} /> Import
@@ -895,32 +913,21 @@ export default function App() {
                     </div>
                   </div>
                 </section>
-                {view.view !== "dossier" && (
+                {view.view !== "dossier" && dossierProps && (
                   <aside className="inspector" aria-label="Skill inspector">
-                    {dossierProps ? (
-                      <Dossier {...dossierProps} />
-                    ) : (
-                      <div className="inspector-empty">
-                        <ArrowUpRight size={30} />
-                        <h2>Select a record.</h2>
-                        <p>
-                          Its instructions and connections will appear here.
-                        </p>
-                      </div>
-                    )}
+                    <button
+                      className="inspector-dismiss"
+                      onClick={() => {
+                        setView({ selected: "" });
+                        requestAnimationFrame(() => searchRef.current?.focus());
+                      }}
+                    >
+                      Hide preview <ArrowRight size={14} aria-hidden="true" />
+                    </button>
+                    <Dossier {...dossierProps} />
                   </aside>
                 )}
               </div>
-              <footer className="app-footer">
-                <span>
-                  SKILL ARCHIVE<span className="footer-separator">/</span>A
-                  WORKING COLLECTION
-                </span>
-                <span>
-                  LOCAL FIRST. ALWAYS YOURS.
-                  <span className="footer-cross">✳</span>
-                </span>
-              </footer>
             </>
           )}
         </main>

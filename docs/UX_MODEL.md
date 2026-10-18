@@ -17,12 +17,14 @@ User confirmed AI agent skills and instructions. Skills have title, description,
 ## Interaction contract
 
 - Collection/category/status/search/sort apply to all views. Selection persists by ID; a filtered-out record is not silently substituted.
+- A fresh workspace starts without a selected record or inspector. Explicit saved URL/last-view selection still restores. Selecting reveals a preview at desktop widths; Hide preview clears selection and returns focus to search. Filters expands status, category and sort without discarding active values when closed.
 - Index offers quick favorite/status editing. Dossier offers readable instructions and explicit related links. Edit form uses Save/Cancel with dirty-close confirmation.
 - Atlas draws only stored relationships and also provides semantic keyboard-accessible links. Posters are an expressive browsing projection, never the only retrieval surface.
 - Ctrl/Cmd+K opens commands; `/` focuses search; arrows move index selection; Enter opens dossier; N creates and E edits outside inputs; Escape closes overlays; Ctrl/Cmd+Z undoes domain edits outside inputs; Ctrl/Cmd+S saves an open editor.
 - URL query state supports selection, view, query and filters with browser back/forward. Local preferences are stored independently of domain data.
 - Local workspace commits automatically after explicit form saves and quick edits. Save errors remain visible with retry; validation fails before mutation. Import replacement requires a review/confirmation and is undoable. Export is an independent versioned JSON backup.
 - Narrow screens collapse navigation into a drawer and open details as a dedicated view, rather than squeezing three columns.
+- The workspace scrolls as a document beneath its sticky header. The Atlas exposes a separate labeled horizontal map scrollbar and keyboard directions. Native fit/restore is available in the header; its overflow button opens Window options for minimize/close and drag/resize instructions.
 - Reduced effects remove photographic decoration; reduced motion removes transitions. All data and controls remain usable.
 
 ## Recovery

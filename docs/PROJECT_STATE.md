@@ -2,19 +2,21 @@
 
 ## Project Mission
 
-Build a precise, local-first desktop skill workspace with an expressive damaged-print visual system and accessible keyboard workflows.
+Build a precise, local-first desktop skill workspace with an expressive damaged-print visual system and accessible keyboard workflows. Skills are meant to be accessed by local agents and autonomously updated/optimized by such agents. 
 
 ## Current Phase
 
-Verified Windows desktop release and browser development build ready for handoff.
+Opening-page refinement is browser-verified and the updated Windows executable/installer built successfully. Installed-copy update and physical drag/resize verification remain pending.
 
 ## Current Objective
 
-Maintain the verified archive workbench; use the documented architecture and design contract for future changes.
+1. Ensure and implement intended skill functionality (metadata, read ability, writing ability). 
+2. Simplify the opening page, remove the separate OS title strip, and verify scrolling, responsive layout and replacement window controls.
 
 ## Verified Baseline
 
 2026-09-15: workspace exists but is empty, with no package, source, Git repository, existing app, or project-level instructions. Git status/branch checks report not a repository. There is no existing UI to run or capture. Global user instructions and the supplied orchestrator brief apply.
+*updated since
 
 ## Architecture Snapshot
 
@@ -22,11 +24,14 @@ React 19 + TypeScript + Vite 7 frontend with Tauri 2 shell. TypeScript owns sche
 
 ## In Progress
 
-- No implementation work pending.
-- Final verification and workflow audit complete.
+- Interface refinement is implemented and browser-verified. The user stopped Computer Use with physical Escape during final native checks; no further desktop input was attempted. Physical header drag, edge resize, minimize/relaunch and installed-copy update remain pending.
+- Installed-app launch, visible Start search, taskbar pin/relaunch and sign-out/restart verification remain pending.
 
 ## Completed
 
+- Opening Index now uses a compact heading without a promotional masthead or automatic initial selection. Filters are disclosed on demand, a selected preview can be hidden, and duplicate slogans/view numbering are removed.
+- Document scrolling keeps the app header visible; scrollbar contrast, narrow-window wrapping and keyboard map scrolling are verified. 27 new browser layout assertions, 35 existing workflow assertions, 24 domain/storage tests and nine zero-violation accessibility states passed.
+- Undecorated native window, startup fit, fit/restore controls, window-options focus and Close action were exercised in the first native build. Real save/reload, backup, Markdown import and JSON export passed. The final Ctrl+K guard and 375px native viewport regression checks still need a native run after packaging.
 - User confirmed AI agent skill/instruction domain.
 - Three structural concepts compared in UX_MODEL.md; archive workbench selected.
 - All seven supplied references interpreted in DESIGN_CONTRACT.md.
@@ -37,6 +42,7 @@ React 19 + TypeScript + Vite 7 frontend with Tauri 2 shell. TypeScript owns sche
 - 25 browser workflow assertions and 10 additional focus/history/save-failure assertions passed.
 - Native executable launched and verified through its real WebView: Tauri marker, file-backed save, reload, previous-version backup, Markdown import and export download all passed. Test changes restored.
 - Final native executable (6,413,312 bytes) and NSIS installer (2,195,700 bytes) built successfully. Final native smoke passed against the packaged assets; a second launch exited with one running instance.
+- Existing 0.1.0 NSIS installer installed per-user. Windows Start registration reports Skill Archive with AppID `com.skillarchive.desktop`; its shortcut targets `%LOCALAPPDATA%\Skill Archive\skill-archive.exe`. No packaging metadata change or rebuild was needed.
 - Desktop, native, poster, editor, dossier and narrow screenshots inspected. Favicon, contrast, dossier heading, dirty-editor focus and mobile focus containment corrected.
 
 ## Decisions
@@ -54,6 +60,7 @@ React 19 + TypeScript + Vite 7 frontend with Tauri 2 shell. TypeScript owns sche
 - Discovery agents supplied useful early recommendations but hit account quota; orchestrator finished implementation without repeated respawns.
 - Local npm 10.9.4 failed resolving updated Vitest optional peers. One-off npm 11 succeeded, patched Vite/Vitest installed, audit reports zero vulnerabilities. No global npm change.
 - Visual Studio installation reports incomplete, but actual x64 compiler/linker exist. vcvars64.bat activates them; native tests and release packaging pass without installing more system tools.
+- Installation follow-up: Computer Use stopped while opening Start because it could not determine the foreground browser URL sufficiently to enforce policy. No further UI input was attempted. Start registration is verified through the shell, but visible search, installed launch, data retention, taskbar pin/relaunch and sign-out/restart remain unverified. Neither native workspace file existed at the documented path before installation, so existing-data retention could not be checked by file comparison.
 
 ## Verification
 
@@ -65,7 +72,7 @@ No confirmed functional bug outstanding. Browser storage has no cross-tab merge 
 
 ## Next Actions
 
-Use Start Skill Archive.cmd or the installer. Future work only if requested: installed-directory linking, richer Markdown, persistent revision history and measured large-library optimizations.
+Resume the installed-app UI checks: search Start for Skill Archive, launch and verify its native save/reload behavior, pin the Start result to the taskbar, and verify relaunch. Verify persistence after a Windows sign-out/restart when the session can be interrupted. Future work only if requested: installed-directory linking, richer Markdown, persistent revision history and measured large-library optimizations.
 
 ## Important Files
 
@@ -82,4 +89,8 @@ UX/art review recommended dense workbench with limited plate masthead and paper 
 
 ## Last Updated
 
-2026-09-15, final packaged Windows runtime confirmed. Work is local on main; no commit or push was made by this task. Skill audit: not applicable; no skill file changed because canonical repository docs cover the verified procedures.
+2026-09-23, opening-page and borderless-window refinement. Work remains local on main; no commit or push. The existing installed copy was not updated in this task. Skill audit: not applicable; project-specific findings are covered by repository docs/tests, with no skill file changed. One Luna/medium worker completed a read-only review and hit quota on a test follow-up; root finished implementation and browser checks.
+
+## Calendar skill addition - 2026-09-24
+
+Created the personal `add-to-calendar` skill and added its active Operations record to the saved native archive, preserving all 12 existing records (13 total). Added an exact Markdown fixture and three integration tests; all 27 tests and the TypeScript/Vite build passed. Creation and applied skills were recorded in shared skill history. Browser UI QA was blocked by unattached Chrome automation and unavailable isolated browser; native storage was schema-validated, not UI/IPC-tested. See [the scoped verification record](ADD_TO_CALENDAR.md). Existing interface work and its outstanding native checks are unchanged. Skill audit: updated (`add-to-calendar`); no commit or push.

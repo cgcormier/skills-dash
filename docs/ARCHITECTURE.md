@@ -34,6 +34,8 @@ The only plugin is Tauri's **single-instance** plugin. Requirement: prevent inde
 
 No filesystem, shell, HTTP, SQL, notification or dialog plugin is enabled. Import/export use standard WebView file inputs and downloads, verified in the native app. Native commands accept no path. CSP permits bundled scripts/assets and Tauri IPC, with no remote navigation, frames or external resource origins. Application-local commands follow the [Tauri command boundary](https://v2.tauri.app/develop/calling-rust/).
 
+The undecorated native window needs six explicit core window permissions: close, minimize, toggle maximize, internal toggle maximize (header double-click), read maximized state and start dragging. They are available only to the local main window. `WindowControls.tsx` mounts only in Tauri; browser development remains independent. These bounded OS operations replace the removed system title bar using Tauri's [window customization API](https://v2.tauri.app/learn/window-customization/); no filesystem, shell, remote-origin or window-creation access is added. The window starts maximized and restores to a resizable 1100x720 window with a 375x600 minimum.
+
 ## Dependency decisions
 
 - React/TypeScript/Vite: browser-independent UI and production asset build.

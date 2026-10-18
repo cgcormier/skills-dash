@@ -39,6 +39,7 @@ async (page) => {
     "Collection filter shows only matching skills",
   )
   await test.getByRole("button", { name: "All skills 12", exact: true }).click()
+  await test.getByRole("button", { name: "Filters", exact: true }).click()
   await test
     .getByRole("combobox", { name: "Filter status", exact: true })
     .selectOption("draft")
@@ -117,7 +118,7 @@ async (page) => {
     .getByRole("button", { name: "Restore to active", exact: true })
     .click()
   results.push("Full dossier renders instructions and archive/restore works")
-  await test.getByRole("button", { name: "Atlas 02", exact: true }).click()
+  await test.getByRole("button", { name: "Atlas", exact: true }).click()
   assert(
     (await test.locator(".atlas-node").count()) === 13,
     "Atlas represents actual records",
@@ -127,7 +128,7 @@ async (page) => {
     "Atlas shows stored relationships",
   )
   await test.screenshot({ path: "output/playwright/atlas.png" })
-  await test.getByRole("button", { name: "Posters 03", exact: true }).click()
+  await test.getByRole("button", { name: "Posters", exact: true }).click()
   assert(
     (await test.locator(".skill-poster").count()) === 13,
     "Posters share the same collection",
@@ -152,9 +153,9 @@ async (page) => {
     .selectOption("compact")
   await test.getByRole("button", { name: "Done", exact: true }).click()
   await test.emulateMedia({ reducedMotion: "reduce" })
-  await test.getByRole("button", { name: "Index 01", exact: true }).click()
+  await test.getByRole("button", { name: "Index", exact: true }).click()
   assert(
-    (await test.locator(".masthead-art").isVisible()) === false,
+    (await test.locator(".inspector .dossier-image").isVisible()) === false,
     "Effects-none removes decoration without removing data",
   )
   assert(

@@ -23,11 +23,14 @@ Precise information with the physical character of a small-run print archive. Co
 - Effects: CSS grayscale/contrast and static gradients on supplied reference images; no per-frame noise, WebGL or runtime image processing. `data-effects` removes/reduces decoration.
 - Motion: deterministic 140–200ms opacity/transform; no loops; OS reduced motion disables it.
 - Density: comfortable or compact row spacing independent from effects and palette.
-- Identity surfaces may be loud; navigation moderate; repeated data restrained; forms quiet.
+- The opening Index is quiet: compact heading, search, a ruled list and one primary create action. No promotional masthead or automatically opened preview. Posters and dossier imagery retain the print identity.
+- Status/category/sort controls use an explicit Filters disclosure; active filters remain visible and clearable when collapsed. Repeated slogans and duplicate view numbering are removed.
 
 ## Accessibility and viewport rules
 
 Visible focus, semantic table and buttons, labeled native form fields, modal focus containment/return, Escape handling, high contrast text. Main list remains usable without imagery. At narrow widths hide inspector and open full dossier, collapse rail to drawer; never shrink all columns.
+
+Use one document scrollbar for the workspace, with a sticky header and enough scroll padding to keep focused controls visible. Navigation scrolls only when its contents exceed the window. The Atlas keeps its labeled, keyboard-focusable scroll region and a visible sideways-scroll hint. Native windows use the app header as their drag region, open maximized, and offer fit/restore plus Window options without a separate OS title strip.
 
 ## Assets
 
