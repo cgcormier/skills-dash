@@ -1,5 +1,10 @@
 # Add to Calendar skill verification
 
+Historical September archive integration record. The October 18 workbench no
+longer edits archive records; the old integration test was replaced by read-only
+legacy validation and real `SKILL.md` parser/boundary tests. Paths and counts
+below describe that earlier run and are not current installation assertions.
+
 Verified September 24, 2026. Work is local; no commit or push.
 
 ## Installed and archived

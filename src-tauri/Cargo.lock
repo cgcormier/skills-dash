@@ -3126,7 +3126,6 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-single-instance",
- "time",
  "windows-sys 0.61.2",
 ]
 

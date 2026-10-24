@@ -37,7 +37,7 @@ export function Modal({
     >
       <header className="modal-header">
         <div>
-          <span className="eyebrow">SKILL ARCHIVE / WORKSPACE</span>
+          <span className="eyebrow">PERSONAL SKILLS / WORKBENCH</span>
           <h2>{title}</h2>
         </div>
         <button

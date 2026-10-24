@@ -1,5 +1,67 @@
 # Verification record
 
+## Personal workbench — 2026-10-18
+
+Current commands: `npm test`, `npm run build`, `npm run desktop:test`,
+`tests/workbench-browser.cjs` and read-only `tests/workbench-native.cjs`.
+The older tests named below belong to the retired JSON UI and have been replaced.
+
+- Frontend: 19 tests passed (7 parser, 3 raw editor, 6 file/legacy boundary, 3 legacy validation).
+- Browser: 33 assertions passed, including malformed/missing records, draft
+  preservation on stale saves, explicit reload, export, native rejection feedback,
+  dirty navigation, keyboard/focus, 375/390/768/1440 layouts and zero axe violations
+  in two narrow states. These use test-only IPC fixtures. Screenshot inspection
+  confirmed paper dossier, ruled list and narrow layout.
+- Native tests: 25 passed after adding the approved recoverable publish protocol.
+  Cases cover real no-replace races (file/junction), successful saves, interruption,
+  partial preparation, stale/deleted/blocked sources, raw/BOM/supporting preservation,
+  recovery listing/reads and exact protected DACL copies. EFS refusal is a predicate
+  test; an actual encrypted fixture and second physical volume were unavailable.
+- Actual development Tauri WebView: 11 read-only assertions passed. The real
+  root resolved to `C:\Users\ccorm\.agents\skills`; all 25 folders appeared in
+  the UI. Raw file IPC, actual path, supporting inventory, gated writes and
+  independent legacy recovery surface passed. Inspected file content was unchanged.
+- Production frontend build/typecheck passed. YAML parser was added; no build-stack
+  rewrite. Sandbox canonicalization blocked ordinary Vite/Rust tooling; narrowly
+  escalated project checks worked.
+- Vite initially followed a deliberately cyclic native-test junction, producing
+  `ELOOP`. Ignoring output/target and disabling symlink following fixed the server;
+  fixtures remain ignored and are not production inputs.
+- Actual development Tauri WebView: 9 write assertions passed against a guarded
+  disposable process profile. Real save/reload retained CRLF and supporting paths;
+  previous/draft recovery bytes and download worked after reload; stale saves
+  preserved newer contents and the unsaved UI draft. Both legacy copies were
+  unchanged; the disposable SKILL.md was restored by a checked save.
+- Test-profile startup initially lacked Windows known-folder AppData resolution.
+  Creating its AppData directories and explicitly setting process-only APPDATA
+  alongside USERPROFILE resolved it; no production fallback/root selector was added.
+- The user approved strict race refusal with a brief missing-file interval; native
+  publishing follows that choice and is not an atomic replacement. No packaged
+  installer update, installed-copy verification or physical power-loss test is claimed.
+
+The September records below are historical and do not describe this milestone.
+
+### Reproduce native IPC writes safely
+
+First build/run with `npm run desktop`, close that app, then run `npm run dev`.
+Keep Vite running. In another PowerShell from the repository, create only the
+disposable profile and launch the debug executable with child-only environment
+overrides. No installed skill files or global environment settings are changed.
+
+```powershell
+$qaProfile = Join-Path (Get-Location) 'output\native-ipc-profile'
+$qaSkill = Join-Path $qaProfile '.agents\skills\smoke-skill'
+New-Item -ItemType Directory -Force -Path (Join-Path $qaSkill 'references'),(Join-Path $qaProfile 'AppData\Roaming'),(Join-Path $qaProfile 'AppData\Local') | Out-Null
+$qaSource = "---`r`nname: smoke-skill`r`ndescription: Disposable native IPC fixture`r`nunknown: { retained: true }`r`n---`r`n# Fixture`r`n"
+[IO.File]::WriteAllText((Join-Path $qaSkill 'SKILL.md'), $qaSource, [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText((Join-Path $qaSkill 'references\keep.txt'), 'supporting preserved', [Text.UTF8Encoding]::new($false))
+Start-Process -FilePath (Join-Path (Get-Location) 'src-tauri\target\debug\skill-archive.exe') -WindowStyle Hidden -Environment @{ USERPROFILE=$qaProfile; APPDATA=(Join-Path $qaProfile 'AppData\Roaming'); LOCALAPPDATA=(Join-Path $qaProfile 'AppData\Local'); WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9233' }
+npx --yes --package @playwright/cli playwright-cli -s=workbench run-code --filename tests/workbench-native-write.cjs
+```
+
+The script refuses to write unless IPC resolves the expected disposable root.
+Close the test app afterward so its temporary debug port is not left running.
+
 ## Interface refinement — 2026-09-23
 
 Latest source: compact opening heading, no promotional masthead, on-demand filters and preview, consistent accessible tab names, visible scrollbars and sticky app header. Native window permissions are reviewed in ARCHITECTURE.md.

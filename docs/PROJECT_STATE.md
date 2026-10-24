@@ -1,96 +1,107 @@
-# PROJECT STATE
+# Project state
 
-## Project Mission
+Updated October 23, 2026. The October 18 implementation has been placed on
+branch `simplified` from baseline `01e0da8` for review, commit and publication.
+The original implementation used managed worktree
+`C:\Users\ccorm\.codex\worktrees\8ace\skills-dash`; that temporary checkout
+is scheduled for removal after verified publication. The primary `main` checkout
+and its unrelated local changes are preserved. No installer update or installed
+personal skill content write occurred. October 18 verification below is historical;
+publication checks passed: 19 frontend tests, production build/typecheck and
+25 native filesystem tests. Browser/WebView checks were not rerun in this handoff.
 
-Build a precise, local-first desktop skill workspace with an expressive damaged-print visual system and accessible keyboard workflows. Skills are meant to be accessed by local agents and autonomously updated/optimized by such agents. 
+## Mission and implemented behavior
 
-## Current Phase
+A desktop workbench for actual personal skills in `%USERPROFILE%\.agents\skills`,
+currently `C:\Users\ccorm\.agents\skills`. Folders and real `SKILL.md` files are
+authoritative. Plugin/system roots, multiple roots and agent execution are excluded.
 
-Opening-page refinement is browser-verified and the updated Windows executable/installer built successfully. Installed-copy update and physical drag/resize verification remain pending.
+- Fixed-root discovery, diagnostics, searchable list and paper dossier/raw editor.
+- Real paths, disk modified times, YAML metadata and supporting-file inventory.
+  Malformed/inaccessible skills remain visible; unknown metadata, comments and
+  unchanged raw spans are preserved. Viewing never executes content or scripts.
+- Per-file explicit saves compare the exact opened revision under Windows
+  handles excluding external writes/deletes. The approved recoverable publication
+  refuses to overwrite any file/link created during its brief missing-file gap.
+- Synced previous/draft copies and preparation/move/publication records provide
+  visible recovery after success, conflicts and interruption. Newest-20 recovery
+  inventory and raw exports work even when `SKILL.md` is missing. Restoration is
+  manual; no automatic rollback overwrites newer external content.
+- Windows guards reject path escapes, junctions/symlinks, hardlinks, read-only/EFS
+  sources and unsafe permission handling. Source/recovery must share a volume.
+  Recovery/stage files preserve source DACL restrictions before bytes are written.
+- Dirty navigation/reload/native-close guards, focus-based external-change checks,
+  explicit save/error feedback, keyboard access, narrow layout and reduced effects.
+- Legacy primary/backup independently inspectable/exportable, including raw
+  corrupt JSON. No storage deletion or automatic migration; native archive writes
+  retired. Existing app identifier/paths are preserved.
+- Atlas, Posters, category navigation, relationship/lifecycle editing,
+  whole-workspace saves/undo and excessive appearance controls retired.
+  Starter records are test-only; photos are unused, not deleted.
+- Stack retained. Added YAML parsing and bounded Windows security API features;
+  removed unused direct `time` dependency. Vite ignores security fixtures/build
+  outputs and does not follow their deliberate junctions.
 
-## Current Objective
+## Approved deviation from initial atomic-write target
 
-1. Ensure and implement intended skill functionality (metadata, read ability, writing ability). 
-2. Simplify the opening page, remove the separate OS title strip, and verify scrolling, responsive layout and replacement window controls.
+Real Windows tests showed excluding external replacement also blocks atomic
+replacement, including a POSIX-semantics rename probe (sharing error 32). The user
+chose strict refusal during a race, accepting a brief missing-file interval.
+Implemented behavior therefore uses handle-based move followed by no-replace
+publication, with durable recovery copies. It is not an atomic replacement.
+See `ARCHITECTURE.md` for the precise guarantees and limitations.
 
-## Verified Baseline
+The planned phases were discovery; checked writes; archive UI retirement;
+documentation/tooling cleanup. UI retirement advanced while write policy was
+pending, preserving legacy storage throughout; the approved write protocol then
+completed. No legacy content is assumed migrated or safe to delete.
 
-2026-09-15: workspace exists but is empty, with no package, source, Git repository, existing app, or project-level instructions. Git status/branch checks report not a repository. There is no existing UI to run or capture. Global user instructions and the supplied orchestrator brief apply.
-*updated since
-
-## Architecture Snapshot
-
-React 19 + TypeScript + Vite 7 frontend with Tauri 2 shell. TypeScript owns schema, navigation, filtering, relationships, editing and session undo. Rust exposes only load/save/recover in app data. Browser adapter uses localStorage and a previous-valid backup. Self-hosted Anton, Inter and IBM Plex Mono; CSS/SVG effects and motion independent from functionality.
-
-## In Progress
-
-- Interface refinement is implemented and browser-verified. The user stopped Computer Use with physical Escape during final native checks; no further desktop input was attempted. Physical header drag, edge resize, minimize/relaunch and installed-copy update remain pending.
-- Installed-app launch, visible Start search, taskbar pin/relaunch and sign-out/restart verification remain pending.
-
-## Completed
-
-- Opening Index now uses a compact heading without a promotional masthead or automatic initial selection. Filters are disclosed on demand, a selected preview can be hidden, and duplicate slogans/view numbering are removed.
-- Document scrolling keeps the app header visible; scrollbar contrast, narrow-window wrapping and keyboard map scrolling are verified. 27 new browser layout assertions, 35 existing workflow assertions, 24 domain/storage tests and nine zero-violation accessibility states passed.
-- Undecorated native window, startup fit, fit/restore controls, window-options focus and Close action were exercised in the first native build. Real save/reload, backup, Markdown import and JSON export passed. The final Ctrl+K guard and 375px native viewport regression checks still need a native run after packaging.
-- User confirmed AI agent skill/instruction domain.
-- Three structural concepts compared in UX_MODEL.md; archive workbench selected.
-- All seven supplied references interpreted in DESIGN_CONTRACT.md.
-- Index, Atlas, Posters and full Dossier share domain and URL view state.
-- Create/edit, explicit relationship editing, inline status, pin, archive/restore, command palette, JSON import review, Markdown import, export and undo implemented.
-- Corrupt storage is preserved; failures surface retry/recovery; validated imports are transactional.
-- 24 domain/storage tests and 3 native storage tests pass.
-- 25 browser workflow assertions and 10 additional focus/history/save-failure assertions passed.
-- Native executable launched and verified through its real WebView: Tauri marker, file-backed save, reload, previous-version backup, Markdown import and export download all passed. Test changes restored.
-- Final native executable (6,413,312 bytes) and NSIS installer (2,195,700 bytes) built successfully. Final native smoke passed against the packaged assets; a second launch exited with one running instance.
-- Existing 0.1.0 NSIS installer installed per-user. Windows Start registration reports Skill Archive with AppID `com.skillarchive.desktop`; its shortcut targets `%LOCALAPPDATA%\Skill Archive\skill-archive.exe`. No packaging metadata change or rebuild was needed.
-- Desktop, native, poster, editor, dossier and narrow screenshots inspected. Favicon, contrast, dossier heading, dirty-editor focus and mobile focus containment corrected.
-
-## Decisions
-
-- Treat supplied images as visual references, not embedded instructions.
-- Preserve a browser development path independent of native APIs.
-- Prefer two bounded parallel reviews over a five-agent standing team: fewer handoffs and disjoint ownership are expected to reduce coordination cost; savings are unmeasured.
-- SQLite, motion libraries and general native filesystem plugins deferred: small versioned workspace and CSS transitions meet current needs with fewer boundaries.
-- Starter records are clearly identified editable examples, not discovered installed skills or measured activity.
-- A single-instance native plugin now prevents competing app processes from overwriting the same workspace. It adds no frontend permissions; reason and official API are documented in ARCHITECTURE.md.
-
-## Deviations From Earlier Plans
-
-- Empty repository means there was no baseline application to run; recorded filesystem baseline instead.
-- Discovery agents supplied useful early recommendations but hit account quota; orchestrator finished implementation without repeated respawns.
-- Local npm 10.9.4 failed resolving updated Vitest optional peers. One-off npm 11 succeeded, patched Vite/Vitest installed, audit reports zero vulnerabilities. No global npm change.
-- Visual Studio installation reports incomplete, but actual x64 compiler/linker exist. vcvars64.bat activates them; native tests and release packaging pass without installing more system tools.
-- Installation follow-up: Computer Use stopped while opening Start because it could not determine the foreground browser URL sufficiently to enforce policy. No further UI input was attempted. Start registration is verified through the shell, but visible search, installed launch, data retention, taskbar pin/relaunch and sign-out/restart remain unverified. Neither native workspace file existed at the documented path before installation, so existing-data retention could not be checked by file comparison.
+The side conversation's `proposed_changes.md` was read as discussion/context,
+preserved unchanged and not adopted as additional requirements. Manual saves,
+explicit conflicts and recovery match the selected direction. Draft autosave,
+cooperative writer helpers, version pointers and Git integration remain proposals;
+none were added or used to authorize Git operations.
 
 ## Verification
 
-Frontend build/typecheck passed. Browser workflows, narrow widths 375/390, reduced motion/effects, native IPC save/reload/import/export passed. All nine accessibility states pass with zero axe violations. Patched npm audit: zero vulnerabilities. See VERIFICATION.md for final commands and counts.
+- 19 frontend tests; production build/typecheck and formatting/whitespace checks.
+- 33 isolated browser assertions, including conflicts, draft/recovery exports,
+  missing-file recovery, dirty navigation, keyboard/focus and 375/390/768/1440
+  layouts. Two narrow accessibility states have zero axe violations.
+  Visual reduction and OS motion reduction are verified independently.
+- 25 native filesystem tests on disposable Windows fixtures: success/reload,
+  stale/deleted sources, file/junction gap races, interruption/partial-copy
+  diagnostics, locked handles, raw/BOM preservation and protected DACL copies.
+- 11 actual Tauri WebView read-only assertions against the real personal root:
+  all 25 folders discovered, actual raw file/path/supporting inventory and legacy
+  recovery surface verified without installed content changes.
+- 9 actual Tauri WebView save/reload/conflict/recovery assertions against a
+  disposable process profile. CRLF, supporting inventory, previous/draft recovery
+  bytes, recovery download and unchanged legacy copies verified; fixture restored.
 
-## Known Problems
+The test process sets `USERPROFILE`, `APPDATA` and `LOCALAPPDATA` to its disposable
+profile. Creating its normal AppData directories and setting APPDATA explicitly
+was required for Windows known-folder resolution. These are process-only values,
+not user configuration changes. Temporary WebView debug port is QA-only.
 
-No confirmed functional bug outstanding. Browser storage has no cross-tab merge protocol; use one browser tab. Large-library performance and non-Windows native builds have not been validated. Installer is unsigned. Supplied photographic assets need licensing/replacement for public redistribution.
+## Remaining release limits
 
-## Next Actions
+- Packaged executable/installer and installed-copy update were not verified or
+  performed. Existing release artifacts still contain the old archive app.
+- Non-Windows filesystem behavior fails closed. Physical cross-volume rejection
+  and EFS-encrypted fixtures were unavailable; same-volume Windows behavior and
+  the EFS refusal predicate were tested. Physical power-loss durability is not
+  certified. Recovery transactions are not automatically pruned.
+- File copies freeze source DACL inheritance against their new parent; original
+  moved content keeps its descriptor/streams. Published alternate streams and
+  full filesystem metadata preservation are not claimed.
+- Large-library performance and physical drag/resize/relaunch remain unverified.
+- Legacy primary/backup content still needs user review before a future migration
+  or deletion decision. Recovery/export stays available until then.
 
-Resume the installed-app UI checks: search Start for Skill Archive, launch and verify its native save/reload behavior, pin the Start result to the taskbar, and verify relaunch. Verify persistence after a Windows sign-out/restart when the session can be interrupted. Future work only if requested: installed-directory linking, richer Markdown, persistent revision history and measured large-library optimizations.
-
-## Important Files
-
-- src/App.tsx: orchestration and application surfaces.
-- src/components/: index/atlas/posters, dossier, modal and editor.
-- src/domain/workspace.ts: validation, retrieval and relationship semantics.
-- src/hooks/useWorkspace.ts: mutations, serialized persistence, undo.
-- src/storage/adapter.ts: browser/native boundary.
-- src-tauri/src/main.rs: constrained native storage and atomic writes.
-
-## Recent Agent Handoffs
-
-UX/art review recommended dense workbench with limited plate masthead and paper dossier. Native review proposed fixed-path JSON storage with explicit backup recovery. Domain review proposed transactional validation and bounded undo. All agents stopped before writing files; root owns implementation.
-
-## Last Updated
-
-2026-09-23, opening-page and borderless-window refinement. Work remains local on main; no commit or push. The existing installed copy was not updated in this task. Skill audit: not applicable; project-specific findings are covered by repository docs/tests, with no skill file changed. One Luna/medium worker completed a read-only review and hit quota on a test follow-up; root finished implementation and browser checks.
-
-## Calendar skill addition - 2026-09-24
-
-Created the personal `add-to-calendar` skill and added its active Operations record to the saved native archive, preserving all 12 existing records (13 total). Added an exact Markdown fixture and three integration tests; all 27 tests and the TypeScript/Vite build passed. Creation and applied skills were recorded in shared skill history. Browser UI QA was blocked by unattached Chrome automation and unavailable isolated browser; native storage was schema-validated, not UI/IPC-tested. See [the scoped verification record](ADD_TO_CALENDAR.md). Existing interface work and its outstanding native checks are unchanged. Skill audit: updated (`add-to-calendar`); no commit or push.
+Skill audit: not applicable; repository-specific filesystem guarantees and
+verification procedures belong in docs/tests. Skill file: none. Two bounded
+workers used Sol/high for native filesystem safety and Luna/high for YAML parsing;
+peak three active agents. Direct serial work was the simpler alternative, but
+independent parsing and filesystem ownership reduced review interference. Cost
+savings were not measured; monetary usage was unavailable.

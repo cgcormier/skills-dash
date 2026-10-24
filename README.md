@@ -1,101 +1,100 @@
-# Skill Archive
+# Personal skills workbench
 
-A local-first desktop workspace for AI agent skills and instructions. Built with React, TypeScript and Tauri 2, with an editorial print identity drawn from the supplied references.
+A Windows desktop workbench for the actual agent skills in
+`%USERPROFILE%\.agents\skills`. Skill folders and their real `SKILL.md` files are
+authoritative. React, TypeScript, Vite and Tauri remain the existing stack.
 
-## Open the app
+## Current milestone
 
-Run `src-tauri/target/release/bundle/nsis/Skill Archive_0.1.0_x64-setup.exe` to install the app for your Windows user. Then open Start, search for **Skill Archive**, and launch it. Right-click the Start result and choose **Pin to taskbar** for everyday access.
+Directory discovery, search, metadata inspection, validation, supporting-file
+inventory, raw editing, checked per-file saves and recovery export are implemented.
+Malformed and inaccessible skills remain visible. Saves use the approved
+recoverable publish policy: `SKILL.md` can briefly be absent after the old file is
+moved to recovery; publishing refuses to replace any file created during that gap.
+Previous content and the draft are retained independently. See [project state](docs/PROJECT_STATE.md) and the
+[migration contract](docs/WORKBENCH_MIGRATION.md).
 
-The installer creates a Start shortcut targeting `%LOCALAPPDATA%\Skill Archive\skill-archive.exe` with app identity `com.skillarchive.desktop`. The repository's **Start Skill Archive.cmd** remains a development convenience for opening the release executable without Node or a development server.
+The app manages one personal root. It does not include plugin/system skill roots,
+execute agents or scripts, edit supporting files, create/delete skill folders, or
+automatically migrate legacy archives. It uses the existing app identifier and
+installer name, Skill Archive, to preserve app-data continuity.
 
-Windows outputs:
+The interface has a root header, searchable file list and paper dossier/editor.
+Ctrl/Cmd+K or `/` focuses search; arrows/Home/End move through list buttons;
+Enter opens a file; Ctrl/Cmd+S saves it. Escape returns to the list outside text fields. Switching
+files, reloading or closing protects unsaved drafts. Reduced effects and OS
+reduced motion work independently. Narrow windows show the list or dossier.
 
-- `src-tauri/target/release/skill-archive.exe` — standalone application.
-- `src-tauri/target/release/bundle/nsis/Skill Archive_0.1.0_x64-setup.exe` — per-user installer.
+## Develop and verify
 
-The app uses the installed Microsoft WebView2 runtime. The installer is locally built and unsigned.
-
-The desktop app opens fitted to the screen without a separate Windows title bar. Drag empty space in its header to move it; double-click to fit/restore, or use the fit icon at the top right. **Window options** (the three dots) offers minimize and close. Drag window edges to resize. The workspace scrolls beneath the fixed header; the Atlas has its own labeled sideways-scrolling map.
-
-The opening page keeps search and the skill list in focus. **Filters** reveals status, category and sort. Select a skill to show its preview, then use **Hide preview** to return to the wider list. Existing saved navigation is restored.
-
-## Develop
-
-Requires Node 22.12+ (tested on 22.21), npm, and, for Windows desktop builds, Rust MSVC plus Microsoft C++ Build Tools and WebView2. The desktop script locates and activates the existing Visual Studio developer environment automatically.
+Requires Node 22.12+, npm and, for desktop, Rust MSVC, Microsoft C++ Build Tools
+and WebView2. The desktop scripts activate the existing Windows compiler.
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-Browser development runs at `http://127.0.0.1:1420`. Stop it before running `npm run desktop`, which starts its own Vite server on the same port.
+Browser mode at `http://127.0.0.1:1420` has no filesystem access and creates no
+starter data. Stop its server before starting the desktop dev command:
 
 ```powershell
 npm run desktop
-npm run desktop:build
-```
-
-The installed npm 10.9.4 encountered an optional-peer resolver crash while updating dependencies. A one-off `npx --yes npm@11 install` resolved the graph; no global package manager configuration was changed. Prefer the checked-in lockfile with `npm ci` for reproducible installation.
-
-Use the browser development server for visual iterations, and group corrections before running the release build. The size-optimized native release profile performs link-time optimization; even an embedded asset change took about four minutes to rebuild on this machine. Native dev mode is suitable for IPC iteration, followed by one packaged-runtime confirmation after the browser checks pass.
-
-## What works
-
-- Dense index, full dossier, relationship atlas and expressive posters over one collection.
-- Search across title, description, tags, category and instructions; category/status/pinned filters and sorting.
-- Create and edit Markdown instructions, tags, categories, status and explicit relationships.
-- Inline status and pin controls, archive/restore, and 30-step session undo.
-- Ctrl/Cmd+K command palette, keyboard index navigation, N/E shortcuts, Ctrl/Cmd+S in the editor, and predictable Escape/focus behavior.
-- JSON export and reviewed replacement import; individual Markdown file import into an editable draft.
-- Serialized local persistence, visible save errors/retry, and previous-valid backup recovery.
-- URL back/forward and last-view restoration; separate local appearance preferences.
-- Red, orange and x-ray print plates; comfortable/compact density; full/reduced/disabled effects; OS reduced-motion support.
-- Narrow-window navigation drawer and full dossier with keyboard focus containment.
-
-The initial 12 skills are editable **starter examples**. This app does not scan installed skill directories, edit agents' configuration files, or execute instructions. Import your own Markdown instructions to build your actual library.
-
-## Data and recovery
-
-Native data lives in the application's Tauri app-data directory. On this Windows machine that is `%APPDATA%\com.skillarchive.desktop\`:
-
-- `workspace-v1.json` — primary workspace.
-- `workspace-v1.backup.json` — previous valid workspace.
-
-Browser development uses `localStorage` keys `skill-archive.workspace.v1` and `skill-archive.workspace.backup.v1`. Browser and native data are intentionally independent; transfer with JSON export/import. The browser adapter is for development/single-tab use. The desktop app prevents multiple concurrent instances.
-
-Invalid stored data is never silently replaced by starter records. Choose **Recover backup**, retry, or import a valid export. Save failure retains in-memory edits and offers retry; export them before closing. Undo is session-only and is not a replacement for a durable export.
-
-Workspace version 1 has a 5 MiB limit and a 10,000-record validation ceiling. This ceiling is not a performance guarantee: large libraries have not been profiled. JSON timestamps use canonical UTC ISO strings, for example `2026-09-16T00:00:00.000Z`. Unknown versions are rejected rather than guessed. Markdown preview supports headings, paragraphs and plain list lines; arbitrary HTML is rendered as text. Rich Markdown and installed-folder synchronization are future work.
-
-## Verify
-
-```powershell
 npm run typecheck
 npm test
 npm run build
 npm run desktop:test
-npm audit
-npx prettier --check src docs package.json tsconfig.json vite.config.ts index.html
 ```
 
-With the dev server running, use the Playwright CLI (Chrome installed on this machine):
+`npm run desktop:build` produces an executable and NSIS installer. Packaging and
+installed-copy behavior need separate verification for this milestone; historical
+installers do not contain these source changes. Use development mode for review.
+
+Browser QA uses the Playwright CLI with isolated contexts. Fixtures live only in
+test code; they do not prove native integration:
 
 ```powershell
-npx --yes --package @playwright/cli playwright-cli -s=skillarchive open http://127.0.0.1:1420 --headed
-npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-smoke.cjs
-npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-behavior.cjs
-npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-accessibility.cjs
-npx --yes --package @playwright/cli playwright-cli -s=skillarchive run-code --filename tests/browser-layout.cjs
+npx --yes --package @playwright/cli playwright-cli -s=workbench open http://127.0.0.1:1420 --browser chrome
+npx --yes --package @playwright/cli playwright-cli -s=workbench run-code --filename tests/workbench-browser.cjs
 ```
 
-These snippets use isolated browser contexts. They must remain bare function expressions because the CLI wraps their text; they are excluded from Prettier's semicolon insertion. Screenshots and test downloads go to ignored `output/playwright/`. Accessibility scans complement manual focus, overflow and screenshot checks; they are not a complete accessibility certification.
+`tests/workbench-native.cjs` attaches to a development WebView debug port 9233 for
+read-only actual-root checks. `tests/workbench-native-write.cjs` refuses to run
+outside the isolated `output/native-ipc-profile/.agents/skills` fixture. Launch
+the native executable with `USERPROFILE` overridden only for that process to the
+disposable profile while the dev server runs. Also set its process-only `APPDATA`
+and `LOCALAPPDATA` to existing `AppData\Roaming` and `AppData\Local` directories
+under that profile; Windows known-folder lookup otherwise fails. The test uses production commands;
+no alternate-root API is added. Enable the port only in the QA process with
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9233`; it is not
+enabled in app configuration. Native unit tests use disposable ignored fixtures,
+including deliberate junctions. Vite ignores those fixtures and never follows
+their links. Keep CLI snippets as bare function expressions, outside Prettier.
+The fixture setup commands are in [verification](docs/VERIFICATION.md).
 
-Native smoke verification uses `tests/native-smoke.cjs` against a development-only WebView2 debugging port 9233. That port is enabled only by a temporary environment variable during QA, not by the packaged configuration or normal launcher. The test restores the pre-test native workspace after exercising saves/import/export.
+## Legacy data and recovery
 
-`tests/native-window.cjs` checks fit/restore, window-option focus and narrow native WebView layout immediately after a QA launch. Native snippets select the `http://tauri.localhost` page explicitly: a WebView download flyout can create another page ahead of the app. Viewport emulation is cleared after narrow checks; actual OS dragging and resizing require the real desktop window.
+**Legacy archive** inspects and exports the primary and previous backup
+independently, preserving raw corrupt JSON. It never deletes or replaces stored
+data and never converts it to installed skill folders. Export both copies and
+review their contents before any future migration decision.
 
-## Continue development
+- Native: `%APPDATA%\com.skillarchive.desktop\workspace-v1.json` and
+  `workspace-v1.backup.json`.
+- Browser: `skill-archive.workspace.v1` and
+  `skill-archive.workspace.backup.v1` localStorage keys.
 
-Read [project state](docs/PROJECT_STATE.md), [design contract](docs/DESIGN_CONTRACT.md), [UX model](docs/UX_MODEL.md) and [architecture](docs/ARCHITECTURE.md) first. See [verification record](docs/VERIFICATION.md) for what was actually checked.
+Browser and native copies remain independent. Missing data produces no starter
+population. Legacy exports preserve original raw text, including unknown fields.
+The legacy bridge has a 5 MiB/UTF-8 read limit; unreadable or oversized data remains
+on disk with a visible error, requiring manual file recovery.
 
-Supplied photographs are used as private reference assets, not claimed as original artwork. Replace or license them before public redistribution. Fontsource font packages carry their upstream font licenses.
+Per-file recovery transactions live under
+`%APPDATA%\com.skillarchive.desktop\skill-recovery\<folder>\<transaction>\`.
+The dossier lists the newest 20 and exports previous/draft versions, including
+when an interrupted publication leaves `SKILL.md` missing. Review/export a recovery
+version and restore manually, then refresh. No automatic rollback overwrites an
+external file. Recovery copies are not automatically pruned.
+
+See [architecture](docs/ARCHITECTURE.md), [UX](docs/UX_MODEL.md),
+[design](docs/DESIGN_CONTRACT.md) and [verification](docs/VERIFICATION.md).

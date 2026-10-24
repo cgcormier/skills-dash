@@ -1,0 +1,35 @@
+async (page) => {
+  // Read-only actual WebView test. Never substitutes a root or writes a skill.
+  const browser = await page.context().browser().browserType().connectOverCDP('http://127.0.0.1:9233')
+  const p = browser.contexts().flatMap(context => context.pages()).find(p => p.url().includes('127.0.0.1:1420') || p.url().includes('tauri.localhost'))
+  if (!p) throw new Error('Development Tauri WebView not found')
+  const result = []
+  const check = (ok, label) => {if (!ok) throw new Error(label); result.push(label)}
+  await p.reload()
+  await p.getByText('DESKTOP · FILES',{exact:true}).waitFor()
+  check(await p.evaluate(() => window.isTauri === true), 'Actual WebView has native runtime indicator')
+  const inventory = await p.evaluate(() => window.__TAURI_INTERNALS__.invoke('discover_skills'))
+  check(inventory.root.toLowerCase() === 'c:\\users\\ccorm\\.agents\\skills', 'Native command resolves actual personal root')
+  check(inventory.entries.length > 0 && inventory.diagnostics.length === 0, 'Native discovery returns real skill directories without root errors')
+  await p.waitForFunction(count => document.querySelectorAll('.skill-row').length === count, inventory.entries.length)
+  check(await p.locator('.skill-row').count() === inventory.entries.length, `UI displays all ${inventory.entries.length} discovered folders`)
+  const first = inventory.entries.find(entry => !entry.problem)
+  if (!first) throw new Error('No readable personal skill found')
+  const read = await p.evaluate(folder => window.__TAURI_INTERNALS__.invoke('read_skill',{folder}),first.folder)
+  await p.getByRole('textbox',{name:'Search skills',exact:true}).fill(first.folder)
+  await p.locator('.skill-row').filter({hasText:first.folder}).first().click()
+  await p.getByRole('button',{name:'Edit SKILL.md',exact:true}).click()
+  check(await p.getByLabel('Raw SKILL.md',{exact:true}).inputValue() === read.content.replace(/\r\n/g,'\n'), 'Native UI reads actual SKILL.md content through IPC')
+  check(await p.locator('.file-path').first().innerText() === read.path, 'Native dossier shows actual file path')
+  check(await p.locator('.supporting li').count() === read.supportingFiles.length, 'Native supporting inventory matches IPC result')
+  check(inventory.savePolicy === 'recoverable-publish', 'Native advertises approved recoverable publish policy')
+  check(await p.getByRole('button',{name:'Save file',exact:true}).isDisabled(), 'Unchanged actual personal skill cannot be saved')
+  const rawAgain = await p.evaluate(folder => window.__TAURI_INTERNALS__.invoke('read_skill',{folder}),first.folder)
+  check(rawAgain.content === read.content, 'Inspection leaves installed content unchanged')
+  await p.getByRole('button',{name:'Legacy archive',exact:true}).click()
+  await p.getByRole('dialog',{name:'Legacy archive recovery',exact:true}).waitFor()
+  check(await p.getByRole('button',{name:'Done',exact:true}).isVisible(), 'Actual WebView opens independent legacy recovery surface')
+  await p.getByRole('button',{name:'Done',exact:true}).click()
+  await p.screenshot({path:'output/playwright/workbench-native.png'})
+  return result
+}

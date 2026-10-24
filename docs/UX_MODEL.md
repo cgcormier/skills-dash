@@ -1,32 +1,47 @@
 # UX model
 
-## Concepts considered before implementation
-
-| Concept                      | Navigation and default surface                                                            | Selection and editing                                                              | Search/commands                                           | Expression                                                 | Scaling and narrow windows                                                                      |
-| ---------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Archive workbench (selected) | Collection rail, dense index, contextual dossier; Atlas and Posters alternate projections | One stable selected ID, explicit structured editor, quick favorite/status controls | Global command palette plus persistent collection filters | Limited print plate masthead, ruled records, paper dossier | Dense list handles medium libraries; rail collapses and dossier becomes a dedicated screen      |
-| Dossier notebook             | One document at a time with breadcrumb and previous/next                                  | Full-page Markdown authoring; relationships as backlinks                           | Command search opens documents                            | Large editorial covers and marginal metadata               | Strong writing focus; weaker comparison and bulk retrieval; naturally narrow                    |
-| Spatial studio               | Category map is primary, searchable outline as drawer                                     | Node selection opens edit sheet; drag layout separate from data                    | Palette jumps to node or collection                       | X-ray topology and poster groups                           | Good relationship exploration but poor dense retrieval; needs list substitute on narrow screens |
-
-The workbench best supports repeated retrieval and precise editing. It incorporates the notebook's focused dossier and the studio's explicit relationship projection without making spatial interaction mandatory.
-
-## Domain
-
-User confirmed AI agent skills and instructions. Skills have title, description, category, tags, status, favorite, Markdown instructions, explicit related IDs, and timestamps. Starter records are examples, not measured usage or imported installed skills. No execution or hidden filesystem mutation occurs.
+The workbench manages real personal skill folders under one root. It opens with
+the path header, search and an unselected file list. There is no starter
+collection, category rail, Atlas, Posters, lifecycle control or agent run button.
+Legacy archive recovery is a separate explicit surface.
 
 ## Interaction contract
 
-- Collection/category/status/search/sort apply to all views. Selection persists by ID; a filtered-out record is not silently substituted.
-- A fresh workspace starts without a selected record or inspector. Explicit saved URL/last-view selection still restores. Selecting reveals a preview at desktop widths; Hide preview clears selection and returns focus to search. Filters expands status, category and sort without discarding active values when closed.
-- Index offers quick favorite/status editing. Dossier offers readable instructions and explicit related links. Edit form uses Save/Cancel with dirty-close confirmation.
-- Atlas draws only stored relationships and also provides semantic keyboard-accessible links. Posters are an expressive browsing projection, never the only retrieval surface.
-- Ctrl/Cmd+K opens commands; `/` focuses search; arrows move index selection; Enter opens dossier; N creates and E edits outside inputs; Escape closes overlays; Ctrl/Cmd+Z undoes domain edits outside inputs; Ctrl/Cmd+S saves an open editor.
-- URL query state supports selection, view, query and filters with browser back/forward. Local preferences are stored independently of domain data.
-- Local workspace commits automatically after explicit form saves and quick edits. Save errors remain visible with retry; validation fails before mutation. Import replacement requires a review/confirmation and is undoable. Export is an independent versioned JSON backup.
-- Narrow screens collapse navigation into a drawer and open details as a dedicated view, rather than squeezing three columns.
-- The workspace scrolls as a document beneath its sticky header. The Atlas exposes a separate labeled horizontal map scrollbar and keyboard directions. Native fit/restore is available in the header; its overflow button opens Window options for minimize/close and drag/resize instructions.
-- Reduced effects remove photographic decoration; reduced motion removes transitions. All data and controls remain usable.
+- Search matches folder/path, name, description and raw instructions/metadata.
+- All discovered directories remain visible, including missing/inaccessible
+  `SKILL.md` entries. Validation and read errors explain what needs attention.
+- Selection reads a fresh disk revision. Request tickets prevent older async
+  reads/refreshes from replacing newer selections or snapshots.
+- The paper dossier shows actual path, modified time, metadata, instructions and
+  supporting paths. HTML and scripts stay inert text.
+- The raw editor preserves unknown fields/comments and unchanged source spans.
+  Validation is advisory so malformed files can be repaired. Unsaved drafts are
+  session-only; export before closing when a durable draft is needed.
+- Save applies only to the opened `SKILL.md`, carrying its exact opened content
+  for comparison. There is no whole-workspace save or undo. The approved policy
+  refuses a competing replacement and keeps recovery copies; the UI explains
+  that `SKILL.md` may briefly be absent during publication.
+- A save failure keeps the draft and shows the error/recovery paths. Returning
+  app focus checks for external changes without replacing the draft. Explicit
+  reload requires discarding edits first. A successful save shows recovery access.
+- File switching, reload, narrow search navigation and close protect dirty
+  drafts. Discovery failures retain the last successful list; no example/browser
+  storage fallback occurs.
+- Ctrl/Cmd+K or `/` focuses search; narrow selection returns to the list first.
+  Arrows/Home/End move list focus; Enter opens. Escape outside text fields returns
+  to the list. Ctrl/Cmd+S saves. Dialogs contain and return keyboard focus.
+- Narrow windows show list or dossier with Back to list. The native header
+  stays sticky. One reduced-effects preference is independent of OS motion
+  reduction; paper, typography and rules carry identity without photographs.
 
 ## Recovery
 
-Persist versioned validated JSON with one previous-valid backup. Never overwrite invalid storage with seeds. Load failure offers retry, backup recovery and file import. Session undo is capped at 30 states. SQLite is deferred until querying/concurrency scale warrants its maintenance cost.
+The dossier lists the newest 20 file-save transactions with previous/draft export,
+including when a failed publication left `SKILL.md` missing. Incomplete or blocked
+copies have visible diagnostics. Recovery never automatically overwrites an
+external file. Review/export a version for manual restoration, then refresh.
+
+Legacy primary and backup are independently inspectable/exportable, including raw
+corrupt JSON. There is no automatic conversion, replacement or deletion. A future
+migration decision must separately account for both copies and explicitly map
+content to real folders; no mapping is inferred here.

@@ -1,4 +1,4 @@
-import type { Skill, Workspace } from "../domain/workspace";
+import type { Skill, Workspace } from "../../src/domain/workspace";
 
 const records: [string, string, string, string, string[], string[]][] = [
   [

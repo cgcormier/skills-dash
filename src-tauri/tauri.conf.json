@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Skill Archive — A working collection",
+        "title": "Personal Skills — Workbench",
         "width": 1100,
         "height": 720,
         "minWidth": 375,
@@ -32,7 +32,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "shortDescription": "Your agent instructions, collected and refined.",
+    "shortDescription": "Inspect your personal agent skill files.",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"]
   }
 }

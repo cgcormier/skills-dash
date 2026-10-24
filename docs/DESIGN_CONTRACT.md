@@ -1,5 +1,16 @@
 # Design contract
 
+## Personal workbench revision — October 18, 2026
+
+Current layout: one root/path header, searchable ruled file list and paper
+dossier/editor. Anton, Inter and IBM Plex Mono retain the print identity. One
+subtle paper treatment can be disabled; reduced motion remains independent.
+Photographs, alternate palettes, density controls, Atlas, Posters and category
+navigation are retired from the active interface. At narrow widths show list or
+dossier with Back to list, preserving keyboard focus and visible errors. The
+existing sticky native header/window controls remain. The reference notes below
+record the original design rationale; their old surface names are historical.
+
 ## Thesis
 
 Precise information with the physical character of a small-run print archive. Composition carries the identity; distress is restricted to image and display surfaces. Calm forms, sharp ruled lists, generous black negative space, and a warm paper dossier.

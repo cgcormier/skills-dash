@@ -1,3 +1,4 @@
+// Read-only legacy v1 archive validation. Personal skill content lives in SKILL.md.
 export type Status = "active" | "draft" | "archived";
 export type Skill = {
   id: string;
@@ -13,20 +14,6 @@ export type Skill = {
   updatedAt: string;
 };
 export type Workspace = { version: 1; skills: Skill[] };
-export type Filters = {
-  query: string;
-  category: string;
-  status: string;
-  favoritesOnly: boolean;
-  sort: "title" | "updated";
-};
-export const CATEGORIES = [
-  "Development",
-  "Design",
-  "Research",
-  "Writing",
-  "Operations",
-];
 export const MAX_BYTES = 5 * 1024 * 1024;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -136,82 +123,4 @@ export function parseImport(text: string): Workspace {
     );
   }
   return validateWorkspace(parsed);
-}
-
-export function createSkill(input: Partial<Skill> = {}): Skill {
-  const now = new Date().toISOString();
-  return {
-    id: crypto.randomUUID(),
-    title: "Untitled skill",
-    summary: "",
-    category: "Development",
-    tags: [],
-    status: "draft",
-    body: "",
-    relatedIds: [],
-    favorite: false,
-    createdAt: now,
-    updatedAt: now,
-    ...input,
-  };
-}
-
-export function filterSkills(skills: Skill[], filters: Filters): Skill[] {
-  const terms = filters.query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  return skills
-    .filter((skill) => {
-      const haystack = [
-        skill.title,
-        skill.summary,
-        skill.category,
-        ...skill.tags,
-        skill.body,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return (
-        terms.every((term) => haystack.includes(term)) &&
-        (!filters.category || filters.category === skill.category) &&
-        (!filters.status || filters.status === skill.status) &&
-        (!filters.favoritesOnly || skill.favorite)
-      );
-    })
-    .sort((a, b) =>
-      filters.sort === "updated"
-        ? b.updatedAt.localeCompare(a.updatedAt) ||
-          a.title.localeCompare(b.title)
-        : a.title.localeCompare(b.title),
-    );
-}
-
-export function removeSkill(workspace: Workspace, id: string): Workspace {
-  return {
-    ...workspace,
-    skills: workspace.skills
-      .filter((s) => s.id !== id)
-      .map((s) =>
-        s.relatedIds.includes(id)
-          ? {
-              ...s,
-              relatedIds: s.relatedIds.filter((link) => link !== id),
-              updatedAt: new Date().toISOString(),
-            }
-          : s,
-      ),
-  };
-}
-
-export function relationshipEdges(skills: Skill[]): [string, string][] {
-  const ids = new Set(skills.map((s) => s.id));
-  const pairs = new Set<string>();
-  const edges: [string, string][] = [];
-  for (const skill of skills)
-    for (const id of skill.relatedIds) {
-      const key = [skill.id, id].sort().join("\u0000");
-      if (ids.has(id) && !pairs.has(key)) {
-        pairs.add(key);
-        edges.push([skill.id, id]);
-      }
-    }
-  return edges;
 }

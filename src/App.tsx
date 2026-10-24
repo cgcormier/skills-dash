@@ -1,1230 +1,826 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, FileText, RefreshCw, Search } from "lucide-react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { inspectSkill } from "./domain/skillFiles";
+import { updateRawDraft } from "./domain/rawDraft";
 import {
-  Archive,
-  ArrowDownToLine,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  CheckCircle2,
-  Command,
-  FileText,
-  Folder,
-  Grid2X2,
-  HelpCircle,
-  List,
-  Menu,
-  Network,
-  Plus,
-  Search,
-  Settings2,
-  SlidersHorizontal,
-  Star,
-  Upload,
-  Undo2,
-  X,
-} from "lucide-react";
-import { useWorkspace } from "./hooks/useWorkspace";
-import { useViewState, type ViewState } from "./hooks/useViewState";
-import {
-  createSkill,
-  filterSkills,
-  parseImport,
-  MAX_BYTES,
-  type Skill,
-  type Status,
-} from "./domain/workspace";
-import { isDesktop } from "./storage/adapter";
+  discoverSkills,
+  isDesktop,
+  readSkill,
+  saveSkill,
+  listRecoveries,
+  readRecovery,
+  type RecoveryEntry,
+  type SkillFile,
+  type SkillRow,
+} from "./storage/skillFiles";
+import { readLegacy, type LegacyCopy } from "./storage/legacy";
 import { Modal } from "./components/Modal";
-import { SkillEditor } from "./components/SkillEditor";
-import { Dossier } from "./components/Dossier";
-import { Atlas, Posters, SkillIndex } from "./components/Views";
 import { WindowControls } from "./components/WindowControls";
 
-type Preferences = {
-  colorway: "red" | "orange" | "xray";
-  effects: "full" | "reduced" | "none";
-  density: "comfortable" | "compact";
-};
-const defaultPreferences: Preferences = {
-  colorway: "red",
-  effects: "full",
-  density: "comfortable",
-};
-function readPreferences(): Preferences {
+function download(
+  name: string,
+  raw: string,
+  type = "text/plain;charset=utf-8",
+) {
+  const url = URL.createObjectURL(new Blob([raw], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function modified(value: number | null) {
+  return value === null ? "Unavailable" : new Date(value).toLocaleString();
+}
+function initialReducedEffects() {
   try {
-    const p = JSON.parse(
-      localStorage.getItem("skill-archive.preferences") || "{}",
-    );
-    return {
-      colorway: ["red", "orange", "xray"].includes(p.colorway)
-        ? p.colorway
-        : "red",
-      effects: ["full", "reduced", "none"].includes(p.effects)
-        ? p.effects
-        : "full",
-      density: p.density === "compact" ? "compact" : "comfortable",
-    };
+    return localStorage.getItem("skills-workbench.reduced-effects") === "true";
   } catch {
-    return defaultPreferences;
+    return false;
   }
 }
 
 export default function App() {
-  const store = useWorkspace();
-  const [view, setView] = useViewState();
-  const [preferences, setPreferences] = useState(readPreferences);
-  const [editor, setEditor] = useState<{ skill: Skill; isNew: boolean } | null>(
-    null,
+  const [root, setRoot] = useState("%USERPROFILE%\\.agents\\skills");
+  const [rows, setRows] = useState<SkillRow[]>([]);
+  const [savePolicy, setSavePolicy] = useState<
+    "read-only" | "recoverable-publish"
+  >("read-only");
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [rootDiagnostics, setRootDiagnostics] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [file, setFile] = useState<SkillFile | null>(null);
+  const [draft, setDraft] = useState("");
+  const [opening, setOpening] = useState(false);
+  const [fileError, setFileError] = useState("");
+  const [externalChange, setExternalChange] = useState(false);
+  const [recoveries, setRecoveries] = useState<RecoveryEntry[]>([]);
+  const [recoveryError, setRecoveryError] = useState("");
+  const [exportingRecovery, setExportingRecovery] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [legacy, setLegacy] = useState<LegacyCopy[] | null>(null);
+  const [legacyLoading, setLegacyLoading] = useState(false);
+  const [reduced, setReduced] = useState(initialReducedEffects);
+  const search = useRef<HTMLInputElement>(null);
+  const dossier = useRef<HTMLHeadingElement>(null);
+  const openTicket = useRef(0);
+  const refreshTicket = useRef(0);
+  const dirty = file !== null && draft !== file.content;
+  const closing = useRef({ dirty, saving });
+  closing.current = { dirty, saving };
+  const inspection = useMemo(
+    () => (file ? inspectSkill(draft, file.folder) : null),
+    [file, draft],
   );
-  const [palette, setPalette] = useState(false);
-  const [commandQuery, setCommandQuery] = useState("");
-  const [settings, setSettings] = useState(false);
-  const [help, setHelp] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [toast, setToast] = useState("");
-  const [pendingImport, setPendingImport] = useState<{
-    text: string;
-    name: string;
-    count: number;
-  } | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const importRef = useRef<HTMLInputElement>(null);
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skills = store.workspace?.skills ?? [];
-  const visible = useMemo(
-    () =>
-      filterSkills(skills, {
-        query: view.query,
-        category: view.category,
-        status: view.status,
-        favoritesOnly: view.collection === "pinned",
-        sort: view.sort,
-      }),
-    [skills, view],
-  );
-  const selected = skills.find((s) => s.id === view.selected);
-  const categories = [...new Set(skills.map((s) => s.category))].sort();
-  const filtersActive =
-    !!view.query ||
-    !!view.category ||
-    !!view.status ||
-    view.collection === "pinned";
-
-  function notify(message: string) {
-    setToast(message);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(""), 5500);
-  }
-  function attempt(action: () => void) {
-    try {
-      action();
-    } catch (error) {
-      notify(String(error));
-    }
-  }
-  function newSkill() {
-    if (!store.workspace) {
-      notify("Recover or import a workspace before creating a skill.");
-      return;
-    }
-    setEditor({ skill: createSkill({ title: "" }), isNew: true });
-  }
-
-  useEffect(() => {
-    if (!navOpen) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const sidebar = sidebarRef.current;
-    const controls = () => [
-      ...(sidebar?.querySelectorAll<HTMLElement>("button, a[href]") ?? []),
-    ];
-    controls()[0]?.focus();
-    function trap(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setNavOpen(false);
-      }
-      if (event.key !== "Tab") return;
-      const items = controls();
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first?.focus();
-      }
-    }
-    function resize() {
-      if (window.innerWidth > 680) setNavOpen(false);
-    }
-    sidebar?.addEventListener("keydown", trap);
-    window.addEventListener("resize", resize);
-    return () => {
-      sidebar?.removeEventListener("keydown", trap);
-      window.removeEventListener("resize", resize);
-      previous?.focus();
-    };
-  }, [navOpen]);
-  function openSkill(id: string) {
-    setView({ selected: id, view: "dossier" });
-  }
-  function selectSkill(id: string) {
-    setView({
-      selected: id,
-      ...(window.innerWidth < 1180 ? { view: "dossier" as const } : {}),
+  const visible = useMemo(() => {
+    const words = query.toLocaleLowerCase().trim().split(/\s+/);
+    return rows.filter((row) => {
+      const text = [
+        row.folder,
+        row.path,
+        row.problem,
+        row.inspection?.name,
+        row.inspection?.description,
+        row.inspection?.raw,
+      ]
+        .join(" ")
+        .toLocaleLowerCase();
+      return words.every((word) => text.includes(word));
     });
-  }
-  function clearFilters() {
-    setView({ query: "", category: "", status: "", collection: "all" });
-  }
-  function updatePreferences(next: Preferences) {
-    setPreferences(next);
-    try {
-      localStorage.setItem("skill-archive.preferences", JSON.stringify(next));
-    } catch {
-      notify("Preferences apply for this session. Storage is unavailable.");
-    }
-  }
-  function exportFile() {
-    if (!store.workspace) return;
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(store.workspace, null, 2)], {
-        type: "application/json",
-      }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `skill-archive-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    notify("Workspace export prepared.");
-  }
-  async function importFile(file?: File) {
-    if (!file) return;
-    try {
-      if (file.size > MAX_BYTES)
-        throw new Error("Choose a file smaller than 5 MB.");
-      const text = await file.text();
-      if (/\.md$/i.test(file.name)) {
-        const heading = text.match(/^#\s+(.+)$/m)?.[1];
-        setEditor({
-          skill: createSkill({
-            title: (heading || file.name.replace(/\.md$/i, "")).slice(0, 160),
-            body: text,
-            summary: "Imported Markdown instructions. Review before saving.",
-          }),
-          isNew: true,
-        });
-      } else {
-        const data = parseImport(text);
-        setPendingImport({ text, name: file.name, count: data.skills.length });
-      }
-    } catch (error) {
-      notify(String(error));
-    }
-    if (importRef.current) importRef.current.value = "";
-  }
+  }, [rows, query]);
 
+  async function refresh() {
+    const ticket = ++refreshTicket.current;
+    setLoading(true);
+    setLoadError("");
+    try {
+      const snapshot = await discoverSkills();
+      if (ticket !== refreshTicket.current) return;
+      setRoot(snapshot.root);
+      setSavePolicy(snapshot.savePolicy ?? "read-only");
+      setRows(snapshot.entries);
+      setRootDiagnostics(snapshot.diagnostics);
+    } catch (error) {
+      if (ticket === refreshTicket.current) setLoadError(String(error));
+    } finally {
+      if (ticket === refreshTicket.current) setLoading(false);
+    }
+  }
+  function mayLeave() {
+    return (
+      !saving &&
+      (!dirty ||
+        window.confirm(
+          "Discard unsaved edits to this SKILL.md? Export your draft first if you need a copy.",
+        ))
+    );
+  }
+  async function refreshRecoveries(
+    folder: string,
+    ticket = openTicket.current,
+  ) {
+    try {
+      const copies = await listRecoveries(folder);
+      if (ticket !== openTicket.current) return;
+      setRecoveries(copies);
+      setRecoveryError("");
+    } catch (error) {
+      if (ticket === openTicket.current) setRecoveryError(String(error));
+    }
+  }
+  async function exportRecovery(
+    copy: RecoveryEntry,
+    version: "previous" | "draft",
+  ) {
+    setExportingRecovery(true);
+    try {
+      const raw = await readRecovery(copy.folder, copy.id, version);
+      download(`${copy.folder}-${copy.id}-${version}.md`, raw);
+    } catch (error) {
+      setRecoveryError(String(error));
+    } finally {
+      setExportingRecovery(false);
+    }
+  }
+  async function open(folder: string) {
+    if (!mayLeave()) return;
+    const ticket = ++openTicket.current;
+    setSelected(folder);
+    setFile(null);
+    setDraft("");
+    setOpening(true);
+    setFileError("");
+    setExternalChange(false);
+    setRecoveries([]);
+    setRecoveryError("");
+    void refreshRecoveries(folder, ticket);
+    setEditing(false);
+    setNotice("");
+    try {
+      const next = await readSkill(folder);
+      if (ticket !== openTicket.current) return;
+      setFile(next);
+      setDraft(next.content);
+    } catch (error) {
+      if (ticket === openTicket.current) setFileError(String(error));
+    } finally {
+      if (ticket === openTicket.current) {
+        setOpening(false);
+        requestAnimationFrame(() => dossier.current?.focus());
+      }
+    }
+  }
+  async function save() {
+    if (!file || !dirty || saving || savePolicy === "read-only") return;
+    setSaving(true);
+    setFileError("");
+    setNotice("");
+    try {
+      const next = await saveSkill(file, draft);
+      setFile(next);
+      setDraft(next.content);
+      setExternalChange(false);
+      setNotice(
+        "Saved SKILL.md. Previous content is available in the recovery copy below.",
+      );
+      void refresh();
+    } catch (error) {
+      setFileError(
+        `${String(error)} Your draft is still here. Export it or reload the disk version before retrying.`,
+      );
+    } finally {
+      setSaving(false);
+      void refreshRecoveries(file.folder);
+    }
+  }
+  async function showLegacy() {
+    setLegacyLoading(true);
+    setLegacy(await readLegacy());
+    setLegacyLoading(false);
+  }
+  function backToList() {
+    if (!mayLeave()) return false;
+    ++openTicket.current;
+    setSelected(null);
+    setFile(null);
+    setDraft("");
+    setFileError("");
+    setOpening(false);
+    requestAnimationFrame(() => search.current?.focus());
+    return true;
+  }
+  function toggleReduced(value: boolean) {
+    setReduced(value);
+    try {
+      localStorage.setItem("skills-workbench.reduced-effects", String(value));
+    } catch {
+      setNotice(
+        "Appearance applies for this session; preference storage is unavailable.",
+      );
+    }
+  }
   useEffect(() => {
-    function keydown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement;
-      const typing =
-        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
-        target.isContentEditable;
-      const modalOpen =
-        editor ||
-        palette ||
-        settings ||
-        help ||
-        pendingImport ||
-        document.querySelector("dialog[open]");
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "k" &&
-        !editor &&
-        !settings &&
-        !help &&
-        !pendingImport &&
-        (!document.querySelector("dialog[open]") || palette)
-      ) {
+    void refresh();
+    return () => {
+      ++refreshTicket.current;
+      ++openTicket.current;
+    };
+  }, []);
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (closing.current.dirty || closing.current.saving) {
         event.preventDefault();
-        setPalette((value) => !value);
-        setCommandQuery("");
-        return;
+        event.returnValue = "";
       }
-      if (typing || modalOpen || !store.workspace) return;
-      if (event.key === "/") {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-      if (event.key.toLowerCase() === "n" && !event.ctrlKey && !event.metaKey) {
-        event.preventDefault();
-        newSkill();
-      }
-      if (
-        event.key.toLowerCase() === "e" &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        selected
-      )
-        setEditor({ skill: selected, isNew: false });
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        store.undo();
-      }
-      if (event.key === "Escape") setNavOpen(false);
-      if (event.key === "Enter" && target === document.body && selected)
-        openSkill(selected.id);
-      if (
-        ["ArrowUp", "ArrowDown"].includes(event.key) &&
-        view.view === "index" &&
-        (target === document.body || !!target.closest(".skill-table"))
-      ) {
-        event.preventDefault();
-        const index = visible.findIndex((s) => s.id === view.selected);
-        const next = Math.max(
-          0,
-          Math.min(
-            visible.length - 1,
-            index + (event.key === "ArrowDown" ? 1 : -1),
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    if (isDesktop()) {
+      void Promise.resolve()
+        .then(async () => {
+          const stop = await getCurrentWindow().onCloseRequested((event) => {
+            if (
+              closing.current.saving ||
+              (closing.current.dirty &&
+                !window.confirm("Discard unsaved SKILL.md edits and close?"))
+            )
+              event.preventDefault();
+          });
+          if (disposed) stop();
+          else unlisten = stop;
+        })
+        .catch(() =>
+          setNotice(
+            "The native close guard could not be registered. Save or export before closing the window.",
           ),
         );
-        if (visible[next]) {
-          setView({ selected: visible[next].id }, true);
-          requestAnimationFrame(() =>
-            document
-              .querySelector<HTMLButtonElement>("tr.selected .skill-name")
-              ?.focus(),
+    }
+    return () => {
+      disposed = true;
+      unlisten?.();
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, []);
+  useEffect(() => {
+    function keyboard(event: KeyboardEvent) {
+      const input = (event.target as HTMLElement).closest(
+        "input,textarea,select,[contenteditable]",
+      );
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (!legacy) void save();
+      } else if (
+        !legacy &&
+        (((event.ctrlKey || event.metaKey) &&
+          event.key.toLowerCase() === "k") ||
+          (!input && event.key === "/"))
+      ) {
+        event.preventDefault();
+        if (selected && window.innerWidth <= 680 && !backToList()) return;
+        requestAnimationFrame(() => {
+          search.current?.focus();
+          search.current?.select();
+        });
+      } else if (!legacy && !input && event.key === "Escape" && selected)
+        backToList();
+    }
+    window.addEventListener("keydown", keyboard);
+    return () => window.removeEventListener("keydown", keyboard);
+  });
+  useEffect(() => {
+    if (!file || saving) return;
+    let active = true;
+    const baseline = file;
+    async function checkExternal() {
+      try {
+        const current = await readSkill(baseline.folder);
+        if (active && current.content !== baseline.content)
+          setExternalChange(true);
+      } catch (error) {
+        if (active)
+          setFileError(
+            `Disk check failed: ${String(error)}. Current draft preserved.`,
           );
-        }
       }
     }
-    window.addEventListener("keydown", keydown);
-    return () => window.removeEventListener("keydown", keydown);
-  });
-
-  const commandItems = [
-    { title: "Create a new skill", detail: "ACTION / N", action: newSkill },
-    {
-      title: "Open skill index",
-      detail: "VIEW",
-      action: () => setView({ view: "index" }),
-    },
-    {
-      title: "Explore relationship atlas",
-      detail: "VIEW",
-      action: () => setView({ view: "atlas" }),
-    },
-    {
-      title: "Browse poster collection",
-      detail: "VIEW",
-      action: () => setView({ view: "posters" }),
-    },
-    {
-      title: "Import instructions or workspace",
-      detail: "ACTION",
-      action: () => importRef.current?.click(),
-    },
-    { title: "Export workspace backup", detail: "ACTION", action: exportFile },
-    {
-      title: "Appearance and preferences",
-      detail: "SETTINGS",
-      action: () => setSettings(true),
-    },
-    ...skills.map((skill) => ({
-      title: skill.title,
-      detail: skill.category.toUpperCase(),
-      action: () => openSkill(skill.id),
-    })),
-  ].filter((item) =>
-    item.title.toLowerCase().includes(commandQuery.toLowerCase()),
-  );
-
-  const dossierProps = selected
-    ? {
-        skill: selected,
-        skills,
-        onEdit: () => setEditor({ skill: selected, isNew: false }),
-        onSelect: (id: string) => setView({ selected: id }),
-        onExpand: () => setView({ view: "dossier" }),
-        onBack: () => setView({ view: "index" }),
-        onFavorite: () =>
-          attempt(() =>
-            store.updateSkill(selected.id, { favorite: !selected.favorite }),
-          ),
-        onArchive: () =>
-          attempt(() => {
-            store.updateSkill(selected.id, {
-              status: selected.status === "archived" ? "active" : "archived",
-            });
-            notify(
-              selected.status === "archived"
-                ? "Skill restored. Undo is available."
-                : "Skill archived. Undo is available.",
-            );
-          }),
-        notify,
-      }
-    : null;
+    window.addEventListener("focus", checkExternal);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", checkExternal);
+    };
+  }, [file, saving]);
 
   return (
     <div
       className="app"
-      data-colorway={preferences.colorway}
-      data-effects={preferences.effects}
-      data-density={preferences.density}
-      data-native={isDesktop()}
+      data-effects={reduced ? "none" : "full"}
+      data-detail={!!selected}
     >
-      <a href="#workspace" className="skip-link">
-        Skip to workspace
+      <a className="skip-link" href="#workbench">
+        Skip to workbench
       </a>
-      {navOpen && (
-        <button
-          className="nav-backdrop"
-          onClick={() => setNavOpen(false)}
-          aria-label="Close navigation"
-        />
-      )}
-      <div
-        ref={sidebarRef}
-        className={`sidebar ${navOpen ? "open" : ""}`}
-        aria-label="Workspace navigation"
-        role={navOpen ? "dialog" : "complementary"}
-        aria-modal={navOpen ? true : undefined}
-      >
-        {navOpen && (
-          <button
-            className="icon-button drawer-close"
-            onClick={() => setNavOpen(false)}
-            aria-label="Close navigation drawer"
-          >
-            <X size={18} />
-          </button>
-        )}
-        <a
-          className="brand"
-          href="?view=index"
-          onClick={(e) => {
-            e.preventDefault();
-            setView({ view: "index" });
-            setNavOpen(false);
-          }}
-        >
-          <span className="brand-mark">
-            S<span>/</span>A
-          </span>
+      <header className="topbar">
+        <div className="brand" data-tauri-drag-region>
+          <FileText size={20} aria-hidden="true" />
           <span>
-            SKILL
-            <br />
-            ARCHIVE<span className="brand-dot">®</span>
+            SKILLS<span className="brand-detail"> / PERSONAL WORKBENCH</span>
           </span>
-        </a>
-        <button
-          className="command-launcher"
-          onClick={() => {
-            setPalette(true);
-            setNavOpen(false);
-          }}
-        >
-          <Search size={15} /> Find anything <kbd>⌃ K</kbd>
-        </button>
-        <nav>
-          <span className="nav-label">WORKSPACE</span>
+        </div>
+        <span className="runtime">
+          {isDesktop() ? "DESKTOP · FILES" : "BROWSER · NO FILE ACCESS"}
+        </span>
+        {isDesktop() && <WindowControls notify={setNotice} />}
+      </header>
+      <div className="root-header">
+        <div>
+          <span className="eyebrow">MANAGED PERSONAL ROOT</span>
+          <p className="root-path">{root}</p>
+        </div>
+        <div className="header-actions">
           <button
-            className={`nav-item ${view.collection === "all" && !view.status && !view.category ? "active" : ""}`}
-            onClick={() => {
-              clearFilters();
-              setView({ view: "index" });
-              setNavOpen(false);
-            }}
+            className="secondary"
+            disabled={loading || saving}
+            onClick={() => void refresh()}
           >
-            <Archive size={17} />
-            <span>All skills</span>
-            <b>{String(skills.length).padStart(2, "0")}</b>
+            <RefreshCw size={15} aria-hidden="true" />
+            {loading ? "Refreshing…" : "Refresh files"}
           </button>
           <button
-            className={`nav-item ${view.collection === "pinned" ? "active" : ""}`}
-            onClick={() => {
-              setView({
-                collection: "pinned",
-                category: "",
-                status: "",
-                view: "index",
-              });
-              setNavOpen(false);
-            }}
+            className="text-button"
+            disabled={legacyLoading}
+            onClick={() => void showLegacy()}
           >
-            <Star size={17} />
-            <span>Pinned</span>
-            <b>
-              {String(skills.filter((s) => s.favorite).length).padStart(2, "0")}
-            </b>
+            Legacy archive
           </button>
-          <button
-            className={`nav-item ${view.status === "draft" ? "active" : ""}`}
-            onClick={() => {
-              setView({
-                status: "draft",
-                category: "",
-                collection: "all",
-                view: "index",
-              });
-              setNavOpen(false);
-            }}
-          >
-            <FileText size={17} />
-            <span>Drafts</span>
-            <b>
-              {String(
-                skills.filter((s) => s.status === "draft").length,
-              ).padStart(2, "0")}
-            </b>
-          </button>
-          <span className="nav-label category-heading">
-            COLLECTIONS <span>{categories.length}</span>
-          </span>
-          {categories.map((category) => (
-            <button
-              key={category}
-              className={`nav-item category-nav ${view.category === category ? "active" : ""}`}
-              onClick={() => {
-                setView({
-                  category,
-                  status: "",
-                  collection: "all",
-                  view: "index",
-                });
-                setNavOpen(false);
-              }}
-            >
-              <span className="collection-square" />
-              <span>{category}</span>
-              <b>
-                {String(
-                  skills.filter((s) => s.category === category).length,
-                ).padStart(2, "0")}
-              </b>
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <button
-            className="nav-item"
-            onClick={() => {
-              setSettings(true);
-              setNavOpen(false);
-            }}
-          >
-            <Settings2 size={16} />
-            <span>Preferences</span>
-          </button>
-          <button
-            className="nav-item"
-            onClick={() => {
-              setHelp(true);
-              setNavOpen(false);
-            }}
-          >
-            <HelpCircle size={16} />
-            <span>Field guide</span>
-            <kbd>?</kbd>
-          </button>
-          <div className="local-indicator">
-            <span className="status-dot" />
-            {isDesktop() ? "NATIVE WORKSPACE" : "BROWSER WORKSPACE"}
-          </div>
+          <label className="effects-control">
+            <input
+              type="checkbox"
+              checked={reduced}
+              onChange={(event) => toggleReduced(event.target.checked)}
+            />
+            Reduce effects
+          </label>
         </div>
       </div>
-      <div className="application-body" inert={navOpen}>
-        <header
-          className="topbar"
-          data-tauri-drag-region={isDesktop() ? true : undefined}
-          title={
-            isDesktop()
-              ? "Drag to move · Double-click to fit or restore"
-              : undefined
-          }
-        >
-          <div
-            className="breadcrumb"
-            data-tauri-drag-region={isDesktop() ? true : undefined}
-          >
-            <button
-              className="icon-button mobile-menu"
-              onClick={() => setNavOpen(!navOpen)}
-              aria-label="Open navigation"
-            >
-              <Menu size={20} />
-            </button>
-            <Folder size={14} />
-            <span>Workspace</span>
-            <span className="breadcrumb-slash">/</span>
-            <strong>
-              {view.view === "dossier"
-                ? "Dossier"
-                : view.category ||
-                  (view.collection === "pinned"
-                    ? "Pinned skills"
-                    : "All skills")}
-            </strong>
-          </div>
-          <div className="topbar-actions">
-            <span className={`save-state ${store.saveStatus}`} role="status">
-              {store.saveStatus === "saved" ? (
-                <CheckCircle2 size={13} />
-              ) : (
-                <span className="status-dot" />
-              )}
-              {store.saveStatus === "saved"
-                ? "Saved locally"
-                : store.saveStatus === "saving"
-                  ? "Saving…"
-                  : store.saveStatus === "loading"
-                    ? "Opening…"
-                    : "Save needs attention"}
-            </span>
-            <button
-              className="icon-button undo-button"
-              onClick={store.undo}
-              disabled={!store.canUndo}
-              aria-label="Undo last change"
-              title="Undo last change (Ctrl+Z)"
-            >
-              <Undo2 size={17} />
-            </button>
-            <span className="topbar-divider" />
-            <button
-              className="topbar-command"
-              aria-label="Open command palette"
-              onClick={() => setPalette(true)}
-            >
-              <Command size={14} />
-              <kbd>K</kbd>
-            </button>
-            {isDesktop() && <WindowControls notify={notify} />}
-          </div>
-        </header>
-        <main id="workspace" tabIndex={-1} className="workspace">
-          {store.error && (
-            <div className="error-banner" role="alert">
-              <p>{store.error}</p>
-              <div>
-                <button onClick={store.retry}>Retry</button>
-                <button
-                  onClick={() =>
-                    void store
-                      .recoverBackup()
-                      .then(() => notify("Previous backup restored."))
-                      .catch((e) => notify(String(e)))
-                  }
-                >
-                  Recover backup
-                </button>
-                <button onClick={() => importRef.current?.click()}>
-                  Import backup
-                </button>
-              </div>
-            </div>
-          )}
-          {store.loading ? (
-            <div className="empty-state">
-              <span className="eyebrow">OPENING THE ARCHIVE</span>
-              <h1>A moment, please.</h1>
-            </div>
-          ) : !store.workspace ? (
-            <div className="empty-state">
-              <Archive size={32} />
-              <h1>Your data is still safe.</h1>
-              <p>Resolve the storage error above to reopen the workspace.</p>
-            </div>
-          ) : (
-            <>
-              {view.view !== "dossier" && (
-                <section
-                  className="collection-heading"
-                  aria-label="Skill archive introduction"
-                >
-                  <div>
-                    <h1>
-                      {view.category ||
-                        (view.collection === "pinned"
-                          ? "Pinned skills"
-                          : view.status === "draft"
-                            ? "Drafts"
-                            : "Your skills")}
-                    </h1>
-                    <p>Find an instruction. Make it your own.</p>
-                  </div>
-                </section>
-              )}
-              <div
-                className={`workbench ${view.view === "dossier" ? "dossier-workbench" : dossierProps ? "with-inspector" : ""}`}
-              >
-                <section
-                  className="collection-panel"
-                  aria-label="Skill collection"
-                >
-                  <div className="view-toolbar">
-                    <div className="view-tabs" aria-label="Collection views">
-                      {(
-                        [
-                          ["index", List, "Index"],
-                          ["atlas", Network, "Atlas"],
-                          ["posters", Grid2X2, "Posters"],
-                        ] as const
-                      ).map(([key, Icon, label]) => (
-                        <button
-                          key={key}
-                          className={view.view === key ? "active" : ""}
-                          aria-pressed={view.view === key}
-                          onClick={() => setView({ view: key })}
-                        >
-                          <Icon size={15} />
-                          <span>{label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <button className="primary new-skill" onClick={newSkill}>
-                      <Plus size={16} />
-                      <span>New skill</span>
-                    </button>
-                  </div>
-                  {view.view === "dossier" ? (
-                    dossierProps ? (
-                      <Dossier {...dossierProps} full />
-                    ) : (
-                      <div className="empty-state">
-                        <h2>Record not found.</h2>
-                        <p>
-                          It may have been removed or replaced by an import.
-                        </p>
-                        <button
-                          className="secondary"
-                          onClick={() => setView({ view: "index" })}
-                        >
-                          <ArrowLeft size={16} /> Return to index
-                        </button>
-                      </div>
-                    )
-                  ) : (
-                    <>
-                      <div className="filter-toolbar">
-                        <div className="search-box">
-                          <Search size={16} />
-                          <input
-                            ref={searchRef}
-                            aria-label="Search skills"
-                            placeholder="Search skills, tags, instructions…"
-                            value={view.query}
-                            onChange={(e) =>
-                              setView({ query: e.target.value }, true)
-                            }
-                          />
-                          {view.query ? (
-                            <button
-                              className="icon-button"
-                              onClick={() => setView({ query: "" }, true)}
-                              aria-label="Clear search"
-                            >
-                              <X size={14} />
-                            </button>
-                          ) : (
-                            <kbd>/</kbd>
-                          )}
-                        </div>
-                        <button
-                          className="secondary filter-toggle"
-                          aria-expanded={filtersOpen}
-                          aria-controls="collection-filters"
-                          onClick={() => setFiltersOpen(!filtersOpen)}
-                        >
-                          <SlidersHorizontal size={14} aria-hidden="true" />{" "}
-                          Filters
-                          {(view.status ||
-                            view.category ||
-                            view.sort !== "title") && (
-                            <span className="status-dot" />
-                          )}
-                        </button>
-                      </div>
-                      <div
-                        id="collection-filters"
-                        className="filter-options"
-                        hidden={!filtersOpen}
-                      >
-                        <label className="filter-select">
-                          <span>Status</span>
-                          <select
-                            aria-label="Filter status"
-                            value={view.status}
-                            onChange={(e) =>
-                              setView({ status: e.target.value })
-                            }
-                          >
-                            <option value="">All statuses</option>
-                            <option value="active">Active</option>
-                            <option value="draft">Draft</option>
-                            <option value="archived">Archived</option>
-                          </select>
-                        </label>
-                        <label className="filter-select">
-                          <span>Category</span>
-                          <select
-                            aria-label="Filter category"
-                            value={view.category}
-                            onChange={(e) =>
-                              setView({ category: e.target.value })
-                            }
-                          >
-                            <option value="">All categories</option>
-                            {categories.map((category) => (
-                              <option key={category}>{category}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="filter-select">
-                          <span>Sort</span>
-                          <select
-                            aria-label="Sort skills"
-                            value={view.sort}
-                            onChange={(e) =>
-                              setView({
-                                sort: e.target.value as ViewState["sort"],
-                              })
-                            }
-                          >
-                            <option value="title">A—Z</option>
-                            <option value="updated">Recently updated</option>
-                          </select>
-                        </label>
-                      </div>
-                      <div className="collection-subhead">
-                        <div>
-                          <span className="record-count">
-                            {visible.length} skills
-                            {view.status ? ` · ${view.status}` : ""}
-                            {view.category ? ` · ${view.category}` : ""}
-                          </span>
-                          {filtersActive && (
-                            <button
-                              className="clear-filters"
-                              onClick={clearFilters}
-                            >
-                              Clear filters <X size={11} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {visible.length ? (
-                        <>
-                          {view.view === "index" && (
-                            <SkillIndex
-                              skills={visible}
-                              allSkills={skills}
-                              selectedId={view.selected}
-                              onSelect={selectSkill}
-                              onOpen={openSkill}
-                              onFavorite={(skill) =>
-                                attempt(() =>
-                                  store.updateSkill(skill.id, {
-                                    favorite: !skill.favorite,
-                                  }),
-                                )
-                              }
-                              onStatus={(skill, status: Status) =>
-                                attempt(() =>
-                                  store.updateSkill(skill.id, { status }),
-                                )
-                              }
-                            />
-                          )}
-                          {view.view === "atlas" && (
-                            <Atlas
-                              skills={visible}
-                              allSkills={skills}
-                              selectedId={view.selected}
-                              onSelect={selectSkill}
-                              onOpen={openSkill}
-                            />
-                          )}
-                          {view.view === "posters" && (
-                            <Posters
-                              skills={visible}
-                              allSkills={skills}
-                              selectedId={view.selected}
-                              onSelect={selectSkill}
-                              onOpen={openSkill}
-                            />
-                          )}
-                        </>
-                      ) : (
-                        <div className="empty-state">
-                          <Search size={30} />
-                          <span className="eyebrow">
-                            NOTHING IN THIS DRAWER
-                          </span>
-                          <h2>
-                            {skills.length
-                              ? "No matching skills."
-                              : "A collection starts with one."}
-                          </h2>
-                          <p>
-                            {skills.length
-                              ? "Try a different word or loosen the filters."
-                              : "Create a skill or import your own Markdown instructions."}
-                          </p>
-                          <button
-                            className="primary"
-                            onClick={skills.length ? clearFilters : newSkill}
-                          >
-                            {skills.length
-                              ? "Clear filters"
-                              : "Create your first skill"}
-                            <ArrowRight size={15} />
-                          </button>
-                        </div>
-                      )}
-                      <div className="collection-footer">
-                        <span>
-                          {String(visible.length).padStart(2, "0")} /{" "}
-                          {String(skills.length).padStart(2, "0")} SKILLS
-                        </span>
-                        <span>
-                          <kbd>↑</kbd>
-                          <kbd>↓</kbd> Navigate{" "}
-                          <span className="footer-separator">/</span>
-                          <kbd>E</kbd> Edit
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  <div className="workspace-tools">
-                    <div>
-                      <button onClick={() => importRef.current?.click()}>
-                        <Upload size={14} /> Import
-                      </button>
-                      <button onClick={exportFile}>
-                        <ArrowDownToLine size={14} /> Export
-                      </button>
-                    </div>
-                  </div>
-                </section>
-                {view.view !== "dossier" && dossierProps && (
-                  <aside className="inspector" aria-label="Skill inspector">
-                    <button
-                      className="inspector-dismiss"
-                      onClick={() => {
-                        setView({ selected: "" });
-                        requestAnimationFrame(() => searchRef.current?.focus());
-                      }}
-                    >
-                      Hide preview <ArrowRight size={14} aria-hidden="true" />
-                    </button>
-                    <Dossier {...dossierProps} />
-                  </aside>
-                )}
-              </div>
-            </>
-          )}
-        </main>
-      </div>
-      <input
-        type="file"
-        accept=".json,.md,application/json,text/markdown"
-        hidden
-        ref={importRef}
-        onChange={(event) => void importFile(event.target.files?.[0])}
-      />
-      {editor && (
-        <SkillEditor
-          skill={editor.skill}
-          skills={skills}
-          isNew={editor.isNew}
-          onClose={() => setEditor(null)}
-          onSave={(skill) => {
-            if (editor.isNew) store.addSkill(skill);
-            else store.updateSkill(skill.id, skill);
-            setView({ selected: skill.id });
-            setEditor(null);
-            notify(
-              editor.isNew
-                ? "Skill added to your archive."
-                : "Skill updated. Undo is available.",
-            );
-          }}
-        />
+      {isDesktop() && savePolicy === "read-only" && (
+        <div className="banner" role="status">
+          Saving is unavailable in this runtime. You can inspect files and
+          export edited drafts.
+        </div>
       )}
-      {palette && (
-        <Modal
-          title="Find your next move."
-          className="command-modal"
-          onClose={() => setPalette(false)}
-        >
-          <div className="command-search">
-            <Search size={20} />
-            <input
-              autoFocus
-              aria-label="Search commands and skills"
-              value={commandQuery}
-              onChange={(e) => setCommandQuery(e.target.value)}
-              placeholder="Search skills or type a command…"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && commandItems[0]) {
-                  setPalette(false);
-                  commandItems[0].action();
-                }
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  document
-                    .querySelector<HTMLButtonElement>(".command-results button")
-                    ?.focus();
-                }
-              }}
-            />
+      {savePolicy === "recoverable-publish" && (
+        <div className="save-policy">
+          Saving checks the opened version and preserves recovery copies.
+          SKILL.md may briefly be absent while the saved file is published.
+        </div>
+      )}
+      {loadError && (
+        <div className="banner error" role="alert">
+          {loadError}{" "}
+          {rows.length > 0 && "The list below is the last successful snapshot."}
+        </div>
+      )}
+      {rootDiagnostics.length > 0 && (
+        <div className="banner" role="status">
+          {rootDiagnostics.map((message, index) => (
+            <p key={index}>{message}</p>
+          ))}
+        </div>
+      )}
+      <main id="workbench" className="workbench" tabIndex={-1}>
+        <aside className="skill-list" aria-label="Personal skills">
+          <div className="list-heading">
+            <h1>Your skills</h1>
+            <span className="eyebrow" aria-live="polite">
+              {visible.length} / {rows.length}
+            </span>
           </div>
-          <div
-            className="command-results"
-            onKeyDown={(e) => {
-              const buttons = [...e.currentTarget.querySelectorAll("button")];
+          <label className="search">
+            <Search size={17} aria-hidden="true" />
+            <span className="sr-only">Search skills</span>
+            <input
+              ref={search}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search files, names, instructions…"
+            />
+            <kbd aria-hidden="true">Ctrl K</kbd>
+          </label>
+          <p className="list-note">
+            Folders are authoritative. Select a file to inspect it.
+          </p>
+          <ul
+            onKeyDown={(event) => {
+              if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key))
+                return;
+              const buttons = [
+                ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  "button",
+                ),
+              ];
               const index = buttons.indexOf(
                 document.activeElement as HTMLButtonElement,
               );
-              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                e.preventDefault();
-                buttons[
-                  Math.max(
-                    0,
-                    Math.min(
-                      buttons.length - 1,
-                      index + (e.key === "ArrowDown" ? 1 : -1),
-                    ),
-                  )
-                ]?.focus();
-              }
+              if (index < 0) return;
+              event.preventDefault();
+              const next =
+                event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? buttons.length - 1
+                    : Math.max(
+                        0,
+                        Math.min(
+                          buttons.length - 1,
+                          index + (event.key === "ArrowDown" ? 1 : -1),
+                        ),
+                      );
+              buttons[next]?.focus();
             }}
           >
-            {commandItems.length ? (
-              commandItems.map((item, index) => (
-                <button
-                  key={`${item.title}-${index}`}
-                  onClick={() => {
-                    setPalette(false);
-                    item.action();
-                  }}
-                >
-                  <span>
-                    {item.title}
-                    <small>{item.detail}</small>
-                  </span>
-                  <ArrowUpRight size={16} />
-                </button>
-              ))
-            ) : (
-              <p className="command-empty">No matching skills or commands.</p>
-            )}
-          </div>
-          <div className="command-footer">
-            <kbd>↑ ↓</kbd> Navigate <kbd>Enter</kbd> Open <kbd>Esc</kbd> Close
-          </div>
-        </Modal>
-      )}
-      {settings && (
-        <Modal
-          title="Make it yours."
-          onClose={() => setSettings(false)}
-          className="settings-modal"
-        >
-          <div className="form-body">
-            <p className="settings-intro">
-              Same collection. A different print run.
-            </p>
-            <fieldset>
-              <legend>Print plate</legend>
-              <div className="colorway-options">
-                {(["red", "orange", "xray"] as const).map((colorway) => (
+            {visible.map((row) => {
+              const problems =
+                (row.inspection?.diagnostics.length ?? 0) +
+                (row.problem ? 1 : 0);
+              return (
+                <li key={row.folder}>
                   <button
-                    className={`colorway-option ${preferences.colorway === colorway ? "selected" : ""}`}
-                    key={colorway}
-                    aria-pressed={preferences.colorway === colorway}
-                    onClick={() =>
-                      updatePreferences({ ...preferences, colorway })
-                    }
+                    className="skill-row"
+                    aria-current={selected === row.folder ? "true" : undefined}
+                    onClick={() => void open(row.folder)}
+                    disabled={saving}
                   >
-                    <span className={`swatch ${colorway}`} />
-                    {colorway === "xray"
-                      ? "X-ray blue"
-                      : colorway === "red"
-                        ? "Washed red"
-                        : "Signal orange"}
-                    {preferences.colorway === colorway && <Check size={14} />}
+                    <span className="row-title">
+                      {row.inspection?.name ?? row.folder}
+                    </span>
+                    <span className="row-folder">{row.folder}/SKILL.md</span>
+                    <span className="row-description">
+                      {row.problem ??
+                        row.inspection?.description ??
+                        "Metadata unavailable"}
+                    </span>
+                    <span className="row-status">
+                      {problems
+                        ? `${problems} validation / access ${problems === 1 ? "issue" : "issues"}`
+                        : "Ready to inspect"}
+                    </span>
                   </button>
-                ))}
-              </div>
-            </fieldset>
-            <label>
-              Visual effects
-              <select
-                aria-label="Visual effects"
-                value={preferences.effects}
-                onChange={(e) =>
-                  updatePreferences({
-                    ...preferences,
-                    effects: e.target.value as Preferences["effects"],
-                  })
-                }
-              >
-                <option value="full">Full — photographic print surfaces</option>
-                <option value="reduced">Reduced — quieter imagery</option>
-                <option value="none">None — typography and data only</option>
-              </select>
-            </label>
-            <label>
-              Index density
-              <select
-                aria-label="Index density"
-                value={preferences.density}
-                onChange={(e) =>
-                  updatePreferences({
-                    ...preferences,
-                    density: e.target.value as Preferences["density"],
-                  })
-                }
-              >
-                <option value="comfortable">Comfortable</option>
-                <option value="compact">Compact</option>
-              </select>
-            </label>
-            <p className="settings-note">
-              Motion follows your operating system’s reduced-motion preference.
-              Appearance changes never change your skills.
+                </li>
+              );
+            })}
+          </ul>
+          {!loading && visible.length === 0 && (
+            <p className="empty-list">
+              {query
+                ? "No files match your search."
+                : isDesktop() && !loadError
+                  ? "No skill folders found. No starter files have been created."
+                  : "Your installed skills appear here in the desktop app."}
             </p>
-          </div>
-          <div className="modal-footer">
-            <button className="primary" onClick={() => setSettings(false)}>
-              Done <Check size={16} />
-            </button>
-          </div>
-        </Modal>
-      )}
-      {help && (
-        <Modal title="Field guide." onClose={() => setHelp(false)}>
-          <div className="form-body help-content">
-            <p>
-              A local home for the instructions that make your AI agents useful.
-            </p>
-            <h3>Three views. One collection.</h3>
-            <p>
-              <strong>Index</strong> finds and compares. <strong>Atlas</strong>{" "}
-              reveals saved relationships. <strong>Posters</strong> makes room
-              for browsing. Select a record for its dossier and use Edit skill
-              to refine it.
-            </p>
-            <h3>Keep your work</h3>
-            <p>
-              Changes save on this device. Export a JSON backup to move the
-              archive between browser and desktop. Import a Markdown file to
-              create one skill, or a JSON export to replace the collection after
-              confirmation.
-            </p>
-            <p>
-              The initial 12 records are editable starter examples. They are not
-              a scan of installed skills, and changing them does not modify
-              agent configuration files.
-            </p>
-            <h3>Keyboard</h3>
-            <dl className="keyboard-guide">
-              {[
-                ["Ctrl / ⌘ K", "Search skills and commands"],
-                ["/", "Focus collection search"],
-                ["↑ / ↓", "Move through index records"],
-                ["N", "Create a skill"],
-                ["E", "Edit selected skill"],
-                ["Ctrl / ⌘ S", "Save the open editor"],
-                ["Ctrl / ⌘ Z", "Undo a workspace change"],
-                ["Esc", "Close the current overlay"],
-              ].map(([key, description]) => (
-                <div key={key}>
-                  <dt>
-                    <kbd>{key}</kbd>
-                  </dt>
-                  <dd>{description}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="settings-note">
-              Undo covers the last 30 changes in this session. A previous saved
-              workspace is retained as a recovery backup. Markdown headings and
-              paragraphs are displayed safely; arbitrary HTML is never executed.
-            </p>
-          </div>
-        </Modal>
-      )}
-      {pendingImport && (
-        <Modal
-          title="Replace this collection?"
-          onClose={() => setPendingImport(null)}
+          )}
+        </aside>
+        <section
+          id="dossier"
+          className="dossier"
+          aria-label="Skill dossier"
+          tabIndex={-1}
         >
-          <div className="form-body">
-            <p>
-              <strong>{pendingImport.name}</strong> contains{" "}
-              {pendingImport.count} valid skills. Importing replaces the current{" "}
-              {skills.length} records.
-            </p>
-            <p>
-              Export your current collection first if you need a durable copy.
-              You can also undo this import during this session.
-            </p>
-            <button className="secondary" onClick={exportFile}>
-              <ArrowDownToLine size={15} /> Export current workspace
-            </button>
-          </div>
-          <div className="modal-footer">
-            <button
-              className="secondary"
-              onClick={() => setPendingImport(null)}
-            >
-              Cancel
-            </button>
-            <button
-              className="primary"
-              onClick={() =>
-                attempt(() => {
-                  const first = parseImport(pendingImport.text).skills[0];
-                  store.importWorkspace(pendingImport.text);
-                  setPendingImport(null);
-                  setView({
-                    selected: first?.id || "",
-                    view: "index",
-                    query: "",
-                    category: "",
-                    status: "",
-                    collection: "all",
-                  });
-                  notify("Workspace imported. Undo is available.");
-                })
-              }
-            >
-              Replace collection <ArrowRight size={16} />
-            </button>
-          </div>
-        </Modal>
-      )}
-      {toast && (
-        <div className="toast" role="status">
-          <CheckCircle2 size={17} />
-          <span>{toast}</span>
-          <button
-            className="icon-button"
-            onClick={() => setToast("")}
-            aria-label="Dismiss message"
-          >
-            <X size={15} />
+          {!selected ? (
+            <div className="empty-dossier">
+              <span className="eyebrow">THE WORKING FILE</span>
+              <h2>
+                Read what your agents
+                <br />
+                actually use.
+              </h2>
+              <p>
+                Inspect a personal skill, its metadata and supporting files.
+                Edit its real SKILL.md with explicit save feedback.
+              </p>
+              <p className="small">
+                Only the personal root is managed. Skill contents and supporting
+                scripts are never executed.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="dossier-toolbar">
+                <button
+                  className="text-button"
+                  onClick={backToList}
+                  disabled={saving}
+                >
+                  <ArrowLeft size={15} aria-hidden="true" />
+                  Back to list
+                </button>
+                <span className="file-state" role="status">
+                  {saving
+                    ? "Saving…"
+                    : dirty
+                      ? "Unsaved edits"
+                      : file
+                        ? "Disk version loaded"
+                        : opening
+                          ? "Reading file…"
+                          : "File unavailable"}
+                </span>
+              </div>
+              <h2 ref={dossier} tabIndex={-1}>
+                {inspection?.name ?? selected}
+              </h2>
+              <p className="file-path">
+                {file?.path ??
+                  rows.find((row) => row.folder === selected)?.path}
+              </p>
+              {fileError && (
+                <div className="paper-banner error" role="alert">
+                  {fileError}
+                </div>
+              )}
+              {externalChange && (
+                <div className="paper-banner" role="alert">
+                  This file changed on disk. Your draft is preserved. Export
+                  your draft, then reload to review the other version. Saving
+                  checks the opened version and refuses stale content.
+                </div>
+              )}
+              {opening && <p role="status">Reading SKILL.md…</p>}
+              {!file && !opening && (
+                <button
+                  className="secondary"
+                  onClick={() => void open(selected)}
+                >
+                  Retry read
+                </button>
+              )}
+              {file && inspection && (
+                <>
+                  <dl className="file-facts">
+                    <div>
+                      <dt>Modified on disk</dt>
+                      <dd>{modified(file.modifiedMs)}</dd>
+                    </div>
+                    <div>
+                      <dt>File</dt>
+                      <dd>SKILL.md · UTF-8</dd>
+                    </div>
+                  </dl>
+                  <div className="file-actions">
+                    <button
+                      className={editing ? "secondary" : "primary"}
+                      disabled={saving}
+                      onClick={() => setEditing(!editing)}
+                    >
+                      {editing ? "Inspect draft" : "Edit SKILL.md"}
+                    </button>
+                    <button
+                      className="primary"
+                      disabled={!dirty || saving || savePolicy === "read-only"}
+                      onClick={() => void save()}
+                    >
+                      {saving ? "Saving…" : "Save file"}
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={saving}
+                      onClick={() => void open(file.folder)}
+                    >
+                      Reload disk version
+                    </button>
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        download(
+                          `${file.folder}-SKILL${dirty ? "-draft" : ""}.md`,
+                          draft,
+                        )
+                      }
+                    >
+                      Export {dirty ? "draft" : "file"}
+                    </button>
+                  </div>
+                  <section aria-label="Validation" className="validation">
+                    <h3>
+                      Validation{" "}
+                      <span>
+                        {inspection.diagnostics.length + file.diagnostics.length
+                          ? "Needs attention"
+                          : "No problems found"}
+                      </span>
+                    </h3>
+                    {(inspection.diagnostics.length > 0 ||
+                      file.diagnostics.length > 0) && (
+                      <ul>
+                        {inspection.diagnostics.map((item, index) => (
+                          <li key={`metadata-${index}`}>
+                            <strong>{item.severity}:</strong> {item.message}
+                          </li>
+                        ))}
+                        {file.diagnostics.map((message, index) => (
+                          <li key={`fs-${index}`}>{message}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                  {editing ? (
+                    <div className="raw-editor">
+                      <label htmlFor="skill-source">Raw SKILL.md</label>
+                      <p className="small">
+                        Edit the entire source, including frontmatter. Unknown
+                        metadata and supporting files are preserved. Validation
+                        is advisory so malformed files can be repaired.
+                      </p>
+                      <textarea
+                        id="skill-source"
+                        value={draft}
+                        onChange={(event) => {
+                          const text = event.target.value;
+                          setDraft((current) => updateRawDraft(current, text));
+                        }}
+                        spellCheck={false}
+                        disabled={saving}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <section className="metadata">
+                        <h3>Metadata</h3>
+                        <p>
+                          {inspection.description || "No readable description."}
+                        </p>
+                        <pre>
+                          {JSON.stringify(inspection.metadata, null, 2)}
+                        </pre>
+                      </section>
+                      <section className="instructions">
+                        <h3>Instructions</h3>
+                        <pre>{inspection.body}</pre>
+                      </section>
+                    </>
+                  )}
+                  <section className="supporting">
+                    <h3>
+                      Supporting files{" "}
+                      <span>{file.supportingFiles.length}</span>
+                    </h3>
+                    <p className="small">
+                      Paths only. These files are preserved and never run by the
+                      workbench.
+                    </p>
+                    {file.supportingFiles.length ? (
+                      <ul>
+                        {file.supportingFiles.map((support) => (
+                          <li key={support.path}>
+                            <span>
+                              {support.path}
+                              {support.kind === "directory" ? "/" : ""}
+                            </span>
+                            <span>
+                              {support.kind === "blocked"
+                                ? "Blocked link / access"
+                                : support.kind === "file" &&
+                                    support.size !== null
+                                  ? `${support.size.toLocaleString()} bytes`
+                                  : support.kind}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>No supporting files reported.</p>
+                    )}
+                  </section>
+                  {file.recoveryPath && (
+                    <section className="recovery">
+                      <h3>Previous content recovery</h3>
+                      <p className="small">
+                        The previous raw file is preserved at:
+                      </p>
+                      <p className="file-path">{file.recoveryPath}</p>
+                    </section>
+                  )}
+                </>
+              )}
+              <section className="recovery" aria-label="File recovery">
+                <h3>Saved recovery copies</h3>
+                <p className="small">
+                  Previous versions and save drafts stay available after
+                  reopening the app, including interrupted saves. Export a copy
+                  for review and manual restoration. Supporting files are
+                  preserved.
+                </p>
+                {recoveryError && (
+                  <p className="paper-banner error" role="alert">
+                    {recoveryError}
+                  </p>
+                )}
+                {!recoveries.length && !recoveryError && (
+                  <p className="small">
+                    No recovery copies reported for this folder.
+                  </p>
+                )}
+                <ul>
+                  {recoveries.map((copy) => (
+                    <li className="recovery-item" key={copy.id}>
+                      <p className="small">
+                        {modified(copy.createdMs)} · {copy.id}
+                      </p>
+                      {copy.diagnostics.map((message, index) => (
+                        <p className="small" key={index}>
+                          {message}
+                        </p>
+                      ))}
+                      {copy.previousPath && (
+                        <>
+                          <p className="file-path">{copy.previousPath}</p>
+                          <button
+                            className="secondary"
+                            disabled={exportingRecovery}
+                            onClick={() =>
+                              void exportRecovery(copy, "previous")
+                            }
+                          >
+                            Export previous version
+                          </button>
+                        </>
+                      )}
+                      {copy.draftPath && (
+                        <button
+                          className="text-button"
+                          disabled={exportingRecovery}
+                          onClick={() => void exportRecovery(copy, "draft")}
+                        >
+                          Export saved draft
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          )}
+        </section>
+      </main>
+      {notice && (
+        <div className="notice" role="status">
+          <span>{notice}</span>
+          <button className="text-button" onClick={() => setNotice("")}>
+            Dismiss
           </button>
         </div>
+      )}
+      {legacy && (
+        <Modal title="Legacy archive recovery" onClose={() => setLegacy(null)}>
+          <div className="form-body">
+            <p>
+              The old JSON archive is separate from your installed skills. Both
+              stored copies are preserved. Export and review them before
+              deciding whether any content needs a manual migration.
+            </p>
+            {legacy.map((copy) => (
+              <section className="legacy-copy" key={copy.source}>
+                <h3>
+                  {copy.source === "primary"
+                    ? "Primary archive"
+                    : "Previous archive backup"}
+                </h3>
+                <p>
+                  {copy.error ??
+                    (copy.raw === null
+                      ? "No stored copy found."
+                      : `${copy.count} legacy records. Not migrated to skill folders.`)}
+                </p>
+                {copy.raw !== null && (
+                  <button
+                    className="secondary"
+                    onClick={() =>
+                      download(
+                        `skill-archive-legacy-${copy.source}.json`,
+                        copy.raw!,
+                        "application/json",
+                      )
+                    }
+                  >
+                    Export {copy.source} {copy.error ? "raw data" : "archive"}
+                  </button>
+                )}
+              </section>
+            ))}
+            <p className="small">
+              No archive data is deleted, imported, replaced or automatically
+              converted here. A corrupt copy can still be exported as raw data.
+            </p>
+            <button className="primary" onClick={() => setLegacy(null)}>
+              Done
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
