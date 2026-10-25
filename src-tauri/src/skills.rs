@@ -7,7 +7,6 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::Manager;
 
 const CONTENT_LIMIT: u64 = 1024 * 1024;
 const ENTRY_LIMIT: usize = 4096;
@@ -62,13 +61,7 @@ pub struct RecoveryEntry {
 }
 
 fn personal_root() -> Result<PathBuf, String> {
-    let profile = std::env::var_os("USERPROFILE")
-        .ok_or("USERPROFILE is unavailable; no alternate skill root is allowed.")?;
-    let root = PathBuf::from(profile).join(".agents").join("skills");
-    if !root.is_absolute() {
-        return Err("USERPROFILE must be an absolute local path.".into());
-    }
-    Ok(root)
+    crate::profile::skills_root()
 }
 fn folder_name(folder: &str) -> Result<(), String> {
     let mut components = Path::new(folder).components();
@@ -120,7 +113,7 @@ pub(crate) fn guarded_open(path: &Path, directory: bool) -> Result<File, String>
     Ok(file)
 }
 #[cfg(windows)]
-fn inspect_handle(file: &File, path: &Path, directory: bool) -> Result<(), String> {
+pub(crate) fn inspect_handle(file: &File, path: &Path, directory: bool) -> Result<(), String> {
     use std::os::windows::io::AsRawHandle;
     use windows_sys::Win32::Storage::FileSystem::*;
     let mut info = BY_HANDLE_FILE_INFORMATION::default();
@@ -154,6 +147,9 @@ pub(crate) fn guarded_open(_path: &Path, _directory: bool) -> Result<File, Strin
 // open gap, no junction traversal, and no directory reparse mutation during I/O.
 pub(crate) fn guard_directories(path: &Path) -> Result<Vec<File>, String> {
     directory_guards(path, DirectoryMode::Existing)?.ok_or("Required directory is missing.".into())
+}
+pub(crate) fn create_guarded_directories(path: &Path) -> Result<Vec<File>, String> {
+    directory_guards(path, DirectoryMode::Create)?.ok_or("Required directory is missing.".into())
 }
 #[derive(Clone, Copy)]
 enum DirectoryMode {
@@ -452,11 +448,7 @@ pub fn read_skill(folder: String) -> Result<SkillFile, String> {
 }
 
 fn recovery_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("skill-recovery"))
+    Ok(crate::profile::data_dir(app)?.join("skill-recovery"))
 }
 fn transaction_id() -> Result<String, String> {
     let nanos = SystemTime::now()
@@ -693,7 +685,7 @@ fn require_same_volume(_source: &File, _destination_directory: &File) -> Result<
 // Rename THIS already validated, locked file. Never reopen its old pathname and
 // never replace the destination. Parent directory handles remain pinned by caller.
 #[cfg(windows)]
-fn rename_no_replace(file: &File, destination: &Path) -> Result<(), String> {
+pub(crate) fn rename_no_replace(file: &File, destination: &Path) -> Result<(), String> {
     use std::os::windows::{ffi::OsStrExt, io::AsRawHandle};
     use windows_sys::Win32::Storage::FileSystem::{
         FileRenameInfo, SetFileInformationByHandle, FILE_RENAME_INFO,
@@ -740,7 +732,7 @@ fn rename_no_replace(file: &File, destination: &Path) -> Result<(), String> {
     Ok(())
 }
 #[cfg(not(windows))]
-fn rename_no_replace(_file: &File, _destination: &Path) -> Result<(), String> {
+pub(crate) fn rename_no_replace(_file: &File, _destination: &Path) -> Result<(), String> {
     Err("Recoverable publishing requires Windows.".into())
 }
 

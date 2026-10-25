@@ -6,6 +6,19 @@ async (page) => {
   p.on('pageerror', error => errors.push(error.message))
   const check = (ok, message) => { if (!ok) throw new Error(message); results.push(message) }
   const fits = () => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+  const focusContrast = control => control.evaluate(el => {
+    const luminance = color => {
+      const channels = color.match(/[\d.]+/g).slice(0,3).map(value => {
+        const channel=Number(value)/255
+        return channel<=0.04045?channel/12.92:((channel+0.055)/1.055)**2.4
+      })
+      return channels[0]*0.2126+channels[1]*0.7152+channels[2]*0.0722
+    }
+    let surface=el.parentElement
+    while(getComputedStyle(surface).backgroundColor==='rgba(0, 0, 0, 0)') surface=surface.parentElement
+    const outline=luminance(getComputedStyle(el).outlineColor),background=luminance(getComputedStyle(surface).backgroundColor)
+    return (Math.max(outline,background)+0.05)/(Math.min(outline,background)+0.05)
+  })
   try {
     await p.goto('http://127.0.0.1:1420')
     await p.getByText('BROWSER · NO FILE ACCESS', {exact:true}).waitFor()
@@ -28,6 +41,8 @@ async (page) => {
         transformCallback: () => 1,
         unregisterCallback: () => {},
         invoke: async (command, args) => {
+          if (command === 'lifecycle_read') return {raw:fixture.lifecycleRaw??null,revision:fixture.lifecycleRevision??null,reports:[],profile:{id:'browser-fixture',root:'C:\\Users\\test\\.agents\\skills',dataDir:'C:\\test\\app-data',test:true},diagnostics:[]}
+          if (command === 'lifecycle_write') {fixture.lifecycleRaw=args.raw;fixture.lifecycleRevision=String(Number(fixture.lifecycleRevision??0)+1);return {revision:fixture.lifecycleRevision}}
           if (command === 'discover_skills') {
             if (fixture.failDiscover) throw 'Discovery permission denied'
             return {root:'C:\\Users\\test\\.agents\\skills',savePolicy:'recoverable-publish',entries:[...Object.keys(fixture.files).map(folder => ({folder,path:read(folder).path,modifiedMs:1792300000000,size:100,problem:null})),{folder:'missing',path:'C:\\Users\\test\\.agents\\skills\\missing\\SKILL.md',modifiedMs:null,size:null,problem:'SKILL.md is missing'}],diagnostics:[]}
@@ -56,12 +71,23 @@ async (page) => {
     await p.reload()
     await p.getByRole('button',{name:/alpha alpha\/SKILL.md/}).waitFor()
     check(await p.locator('.skill-row').count() === 3, 'Valid, malformed and missing skills stay visible together')
+    check(await p.locator('.skill-count').innerText() === '3 skills', 'List count names what is being counted')
     await p.keyboard.press('Control+k')
     await p.waitForFunction(()=>document.activeElement===document.querySelector('.search input'))
     check(await p.getByRole('textbox',{name:'Search skills',exact:true}).evaluate(el => el === document.activeElement), 'Ctrl K focuses search')
     await p.getByRole('textbox',{name:'Search skills',exact:true}).fill('retained')
     check(await p.locator('.skill-row').count() === 1, 'Search includes raw unknown metadata')
-    await p.getByRole('textbox',{name:'Search skills',exact:true}).fill('')
+    check(await p.locator('.skill-count').innerText() === '1 of 3 skills', 'Filtered count shows matching and total skills')
+    await p.keyboard.press('Tab')
+    check(await p.getByRole('button',{name:'Clear search',exact:true}).evaluate(el=>el===document.activeElement), 'Clear search is reachable from the search field by keyboard')
+    await p.keyboard.press('Enter')
+    check(await p.locator('.skill-row').count() === 3 && await p.getByRole('textbox',{name:'Search skills',exact:true}).evaluate(el=>el===document.activeElement), 'Clearing search restores the list and returns focus to search')
+    await p.getByRole('textbox',{name:'Search skills',exact:true}).fill('no matching skill')
+    check(await p.locator('.empty-list').innerText() === 'No files match your search.', 'Empty search results explain the state')
+    await p.getByRole('button',{name:'Clear search',exact:true}).click()
+    check(await p.getByRole('button',{name:'Clear search',exact:true}).count() === 0, 'Clear search disappears when the query is empty')
+    check(await p.locator('.row-status').first().evaluate(el=>getComputedStyle(el).color!==getComputedStyle(document.querySelector('.row-status.has-issues')).color), 'Healthy rows use a neutral status while problems retain warning color and text')
+    check(await p.getByRole('textbox',{name:'Search skills',exact:true}).evaluate(el=>el.matches(':focus-visible')) && await focusContrast(p.getByRole('textbox',{name:'Search skills',exact:true}))>=3, 'Keyboard focus has at least 3:1 contrast on the dark list')
     await p.locator('.skill-row').first().focus()
     await p.keyboard.press('ArrowDown')
     check(await p.locator('.skill-row').nth(1).evaluate(el => el === document.activeElement), 'Arrow keys navigate the file list')
@@ -72,6 +98,8 @@ async (page) => {
     check(await p.evaluate(() => !window.executed), 'Skill HTML is rendered as inert text')
     await p.screenshot({path:'output/playwright/workbench-desktop.png',fullPage:true})
     await p.getByRole('button',{name:'Edit SKILL.md',exact:true}).click()
+    await p.getByLabel('Raw SKILL.md',{exact:true}).focus()
+    check(await p.getByLabel('Raw SKILL.md',{exact:true}).evaluate(el=>el.matches(':focus-visible')) && await focusContrast(p.getByLabel('Raw SKILL.md',{exact:true}))>=3, 'Keyboard focus has at least 3:1 contrast on the paper editor')
     const original = await p.getByLabel('Raw SKILL.md',{exact:true}).inputValue()
     await p.getByLabel('Raw SKILL.md',{exact:true}).fill(original + '\nDraft change')
     await p.evaluate(() => {window.__fixture.files.alpha += '\nExternal agent change';window.dispatchEvent(new Event('focus'))})

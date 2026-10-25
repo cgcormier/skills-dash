@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, FileText, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { inspectSkill } from "./domain/skillFiles";
 import { updateRawDraft } from "./domain/rawDraft";
@@ -16,7 +16,12 @@ import {
 } from "./storage/skillFiles";
 import { readLegacy, type LegacyCopy } from "./storage/legacy";
 import { Modal } from "./components/Modal";
-import { WindowControls } from "./components/WindowControls";
+import { WorkbenchHeader } from "./components/WorkbenchHeader";
+import {
+  ImprovementSettings,
+  SkillImprovement,
+  useImprovement,
+} from "./components/ImprovementControls";
 
 function download(
   name: string,
@@ -42,6 +47,8 @@ function initialReducedEffects() {
 }
 
 export default function App() {
+  const improvement = useImprovement();
+  const [improvementSettings, setImprovementSettings] = useState(false);
   const [root, setRoot] = useState("%USERPROFILE%\\.agents\\skills");
   const [rows, setRows] = useState<SkillRow[]>([]);
   const [savePolicy, setSavePolicy] = useState<
@@ -71,6 +78,16 @@ export default function App() {
   const openTicket = useRef(0);
   const refreshTicket = useRef(0);
   const dirty = file !== null && draft !== file.content;
+  const publicationStamp = improvement.snapshot.store.reviews
+    .filter(
+      (review) =>
+        review.snapshot.skill.folder === selected && review.publication,
+    )
+    .map(
+      (review) =>
+        `${review.id}:${review.status}:${review.publication?.completedAt}`,
+    )
+    .join("|");
   const closing = useRef({ dirty, saving });
   closing.current = { dirty, saving };
   const inspection = useMemo(
@@ -274,9 +291,10 @@ export default function App() {
       );
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        if (!legacy) void save();
+        if (!legacy && !improvementSettings) void save();
       } else if (
         !legacy &&
+        !improvementSettings &&
         (((event.ctrlKey || event.metaKey) &&
           event.key.toLowerCase() === "k") ||
           (!input && event.key === "/"))
@@ -287,7 +305,13 @@ export default function App() {
           search.current?.focus();
           search.current?.select();
         });
-      } else if (!legacy && !input && event.key === "Escape" && selected)
+      } else if (
+        !legacy &&
+        !improvementSettings &&
+        !input &&
+        event.key === "Escape" &&
+        selected
+      )
         backToList();
     }
     window.addEventListener("keydown", keyboard);
@@ -300,8 +324,7 @@ export default function App() {
     async function checkExternal() {
       try {
         const current = await readSkill(baseline.folder);
-        if (active && current.content !== baseline.content)
-          setExternalChange(true);
+        if (active) setExternalChange(current.content !== baseline.content);
       } catch (error) {
         if (active)
           setFileError(
@@ -310,11 +333,12 @@ export default function App() {
       }
     }
     window.addEventListener("focus", checkExternal);
+    if (publicationStamp) void checkExternal();
     return () => {
       active = false;
       window.removeEventListener("focus", checkExternal);
     };
-  }, [file, saving]);
+  }, [file, saving, publicationStamp]);
 
   return (
     <div
@@ -325,49 +349,34 @@ export default function App() {
       <a className="skip-link" href="#workbench">
         Skip to workbench
       </a>
-      <header className="topbar">
-        <div className="brand" data-tauri-drag-region>
-          <FileText size={20} aria-hidden="true" />
-          <span>
-            SKILLS<span className="brand-detail"> / PERSONAL WORKBENCH</span>
-          </span>
+      <WorkbenchHeader
+        root={root}
+        loading={loading}
+        saving={saving}
+        legacyLoading={legacyLoading}
+        reduced={reduced}
+        onRefresh={() => void refresh()}
+        onImprovementSettings={() => setImprovementSettings(true)}
+        onLegacy={() => void showLegacy()}
+        onReducedChange={toggleReduced}
+        notify={setNotice}
+      />
+      {improvement.snapshot.profile?.test && (
+        <div className="save-policy profile-label" role="status">
+          ISOLATED TEST PROFILE · {improvement.snapshot.profile.dataDir}
         </div>
-        <span className="runtime">
-          {isDesktop() ? "DESKTOP · FILES" : "BROWSER · NO FILE ACCESS"}
-        </span>
-        {isDesktop() && <WindowControls notify={setNotice} />}
-      </header>
-      <div className="root-header">
-        <div>
-          <span className="eyebrow">MANAGED PERSONAL ROOT</span>
-          <p className="root-path">{root}</p>
-        </div>
-        <div className="header-actions">
-          <button
-            className="secondary"
-            disabled={loading || saving}
-            onClick={() => void refresh()}
-          >
-            <RefreshCw size={15} aria-hidden="true" />
-            {loading ? "Refreshing…" : "Refresh files"}
-          </button>
+      )}
+      {improvement.snapshot.error && (
+        <div className="banner error" role="alert">
+          Skill improvement: {improvement.snapshot.error}{" "}
           <button
             className="text-button"
-            disabled={legacyLoading}
-            onClick={() => void showLegacy()}
+            onClick={() => void improvement.engine.initialize().catch(() => {})}
           >
-            Legacy archive
+            Retry lifecycle read
           </button>
-          <label className="effects-control">
-            <input
-              type="checkbox"
-              checked={reduced}
-              onChange={(event) => toggleReduced(event.target.checked)}
-            />
-            Reduce effects
-          </label>
         </div>
-      </div>
+      )}
       {isDesktop() && savePolicy === "read-only" && (
         <div className="banner" role="status">
           Saving is unavailable in this runtime. You can inspect files and
@@ -397,24 +406,44 @@ export default function App() {
         <aside className="skill-list" aria-label="Personal skills">
           <div className="list-heading">
             <h1>Your skills</h1>
-            <span className="eyebrow" aria-live="polite">
-              {visible.length} / {rows.length}
+            <span
+              className="eyebrow skill-count"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {query ? `${visible.length} of ${rows.length}` : rows.length}{" "}
+              {rows.length === 1 ? "skill" : "skills"}
             </span>
           </div>
-          <label className="search">
+          <div className="search">
             <Search size={17} aria-hidden="true" />
-            <span className="sr-only">Search skills</span>
+            <label className="sr-only" htmlFor="skill-search">
+              Search skills
+            </label>
             <input
+              id="skill-search"
               ref={search}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search files, names, instructions…"
             />
-            <kbd aria-hidden="true">Ctrl K</kbd>
-          </label>
-          <p className="list-note">
-            Folders are authoritative. Select a file to inspect it.
-          </p>
+            {query ? (
+              <button
+                type="button"
+                className="icon-button clear-search"
+                aria-label="Clear search"
+                onClick={() => {
+                  setQuery("");
+                  search.current?.focus();
+                }}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            ) : (
+              <kbd aria-hidden="true">Ctrl K</kbd>
+            )}
+          </div>
+          <p className="list-note">Select a skill to inspect its file.</p>
           <ul
             onKeyDown={(event) => {
               if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key))
@@ -465,9 +494,11 @@ export default function App() {
                         row.inspection?.description ??
                         "Metadata unavailable"}
                     </span>
-                    <span className="row-status">
+                    <span
+                      className={`row-status${problems ? " has-issues" : ""}`}
+                    >
                       {problems
-                        ? `${problems} validation / access ${problems === 1 ? "issue" : "issues"}`
+                        ? `${problems} ${problems === 1 ? "issue" : "issues"} to review`
                         : "Ready to inspect"}
                     </span>
                   </button>
@@ -707,6 +738,22 @@ export default function App() {
                   )}
                 </>
               )}
+              <SkillImprovement
+                key={selected}
+                engine={improvement.engine}
+                snapshot={improvement.snapshot}
+                folder={selected}
+                blocked={dirty || saving}
+                onChanged={() => {
+                  void refreshRecoveries(selected);
+                  if (file)
+                    void readSkill(selected)
+                      .then((current) => {
+                        setExternalChange(current.content !== file.content);
+                      })
+                      .catch(() => {});
+                }}
+              />
               <section className="recovery" aria-label="File recovery">
                 <h3>Saved recovery copies</h3>
                 <p className="small">
@@ -774,6 +821,13 @@ export default function App() {
             Dismiss
           </button>
         </div>
+      )}
+      {improvementSettings && (
+        <ImprovementSettings
+          engine={improvement.engine}
+          snapshot={improvement.snapshot}
+          onClose={() => setImprovementSettings(false)}
+        />
       )}
       {legacy && (
         <Modal title="Legacy archive recovery" onClose={() => setLegacy(null)}>

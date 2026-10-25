@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "rationale", "proposedContent", "evidenceIds"],
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": ["proposal", "no-change", "insufficient-evidence"]
+    },
+    "rationale": { "type": "string", "minLength": 1, "maxLength": 8000 },
+    "proposedContent": {
+      "anyOf": [{ "type": "string", "maxLength": 65536 }, { "type": "null" }]
+    },
+    "evidenceIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "maxItems": 50
+    }
+  }
+}

@@ -1,8 +1,165 @@
 # Verification record
 
-## Personal workbench — 2026-10-18
+## Small UI refinements - 2026-10-24
 
-Current commands: `npm test`, `npm run build`, `npm run desktop:test`,
+After the feature checks below, the presentation pass passed typecheck, the 59-test
+frontend suite, production web build and formatting/whitespace checks. Isolated
+browser fixtures passed 42 workbench assertions, 34 improvement assertions and 35
+header assertions. They cover clear-search keyboard/focus behavior, filtered/empty
+counts, at least 3:1 focus contrast on ink and paper, neutral/attention statuses,
+the pinned settings close control and unobscured keyboard focus. Header checks
+include long paths and visible actions at 375/390/768/1440px. Reduced effects and
+motion remain independent. Checked list, dossier, settings and header states have
+zero axe violations. Screenshots are under ignored `output/playwright/`.
+
+These fixtures do not establish native behavior. The desktop executable and
+installer were not rebuilt or retested after these UI changes; the native and
+packaged results below apply to the preceding feature milestone.
+
+## Opt-in improvement v1 — 2026-10-24
+
+Current source is the local `feature/skill-improvement-v1` branch, based on
+`develop` commit `e6b81b16e42a5fd5e2ab2bc4bf386b9877949ee4`, at
+`C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1`.
+The normal personal root, installed application and unrelated worktrees were
+preserved. Feature demonstrations use the initialized isolated
+`output/profiles/cycle-v1` profile. See [setup and reporting](IMPROVEMENT_V1.md).
+
+### Completed checks
+
+| Surface                      | Evidence                                                | Final result                                                                                |
+| ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Native units                 | npm.cmd run desktop:test                                | 48 passed                                                                                   |
+| TypeScript                   | npm.cmd test, npm.cmd run typecheck                     | 59 tests passed; includes 35 core tests; typecheck passed                                   |
+| Baseline browser             | tests/workbench-browser.cjs                             | 33 fixture assertions passed                                                                |
+| Improvement browser          | tests/improvement-browser.cjs                           | 31 fixture assertions passed, including narrow accessibility and keyboard checks            |
+| Live reviewer                | npm.cmd run test:live and actual native reviews         | Codex CLI 0.164.0, gpt-6.1-sol, ultra; real proposals plus separate no-change smoke passed  |
+| Windows build                | npm.cmd run desktop:build                               | Fresh executable and NSIS installer built; installer not run                                |
+| Packaged runtime             | tests/improvement-packaged.cjs                          | 30 checks passed before and after actual process restart                                    |
+| Packaged close/profile lease | tests/improvement-packaged-close.cjs and process checks | Three close-guard assertions passed; duplicate profile process refused; clean exit verified |
+
+The live runner uses a read-only sandbox, bounded work directory and output,
+restricted child environment, strict provider schema and Windows job lifetime.
+Verification found the code-mode backend disabled, ephemeral delegation
+unavailable and the write canary unchanged. CLI 0.164.0 still exposes some tool
+metadata; output with tool activity is rejected. These findings do not certify
+arbitrary future CLI versions or general skill quality.
+
+### Actual agent tasks and native review
+
+These were requested deliverables, not registered validation runs or invented
+threshold uses. Each report records the hash of the exact raw skill loaded,
+factual actual/desired output, a stable task ID and existing evidence paths.
+Suggestions were kept separate. No use report was created for this documentation
+maintenance task.
+
+1. With the native app closed, the agent applied both disposable skills to
+   launch-note titles and a content index. Slugs retained uppercase because the
+   loaded JSON disabled lowercase; tags retained duplicates because its JSON
+   disabled uniqueness. The actual reporter command durably accepted one report
+   per skill under `output/agent-tasks/initial`. The running native app then
+   imported those reports exactly once.
+2. At a demonstration threshold of one, the slugs live Propose review passed
+   registered behavior/scope checks. Source bytes stayed unchanged while awaiting
+   approval; explicit approval then published through the checked native save.
+3. The first tags live review returned visible insufficient evidence. That same
+   snapshot did not automatically loop. A separate requested release-notes index
+   generated a second distinct actual task report under
+   `output/agent-tasks/second-index`. Its new evidence made another review eligible;
+   the live proposal passed registered validation and Auto-update published it.
+4. A later documentation-content-pack task freshly read both revised files and
+   applied their current declarative JSON. Actual slugs were `final-release` and
+   `team-update-30`; actual tags were `docs`, `release`, `tools`. Both matched the
+   requested result. Two reports were durably accepted under
+   `output/agent-tasks/revised-use`; the packaged native run later imported them.
+   Their exact loaded hashes matched the hashes of the proposed file contents.
+
+| Skill                     | Initially loaded SHA-256                                           | Revised SHA-256 loaded by the later task                           |
+| ------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `improvement-pilot-slugs` | `2ab8333d948153eb98f1c0af28fc9e162e2e38ba368a6c3ccfcf1faf67edc874` | `22c30fbb33e00c0a4c9ecc0429d2914302587c178986b3e70dd4593708f16331` |
+| `improvement-pilot-tags`  | `f2e3a72fcc7e8d8422902209f237e389a438a91898e4f48d08264b98e45d34c3` | `53558aef13dcc4199c9dfcd285fa730e24a08829705ad5dfe04ec65eeff52739` |
+
+Durable inbox receipt IDs are `f0eb35bd-6194-46d5-b1f7-c0e13727117e` and
+`b02fa3cf-a5e4-4c27-9426-d10e25fe52f5` for the initial tasks,
+`2d427213-cede-49de-9c56-cb6f280a4712` for the separate release index, and
+`0223ca8d-8b8c-4b06-ade9-796f2ec5c2ad` plus
+`c74d8898-4a9a-4601-a44a-4503bef75a5f` for the revised-file task.
+A receipt alone proves durable pending import, not consumption, review or
+publication. The later packaged native process independently loaded exactly five
+observations and five imported receipts, with all three review decisions retained.
+
+### Packaged native restart and recovery
+
+Every old debug process was confirmed stopped before launching the release
+executable. Release process 39120 was the only running Skill Archive process and
+loaded the retained settings, all five observations/import receipts and three
+reviews. Published source bytes and the subsequent task's loaded revisions matched
+the proposal hashes. This supersedes an invalid earlier restart attempt in which
+the old debug process survived the Close action; that earlier screenshot/assertion
+set is not process-restart evidence.
+
+The packaged app exercised checked recovery for both pilots. For tags, a
+deliberately appended owned test marker first caused stale restoration to refuse
+and preserve the newer bytes. A checked save removed only that marker, then the
+separate UI restore returned the exact original skill bytes. Slugs was likewise
+restored to the exact original. Both replaced proposals remained available in
+recovery copies. The isolated profile was left with the global master switch Off.
+
+The repeatable `tests/improvement-packaged.cjs` run passed 30 checks, including
+15 Tab presses contained in settings, Ctrl+K/Escape behavior, no page overflow at
+390/768/1280 pixels, and independent reduced effects/motion. Early harness failures
+in strict locator selection and asynchronous checkbox timing were corrected
+before the final passing run. The native product state and recovery ledger were
+checked independently; harness retries are not additional task applications.
+
+### Final rebuild, close/restart and evidence limits
+
+The final tree passes 59 frontend tests, including 35 core tests. Added regressions
+cover cancellation despite corrupt storage, preservation of the first storage
+error, invalid-proposal retry evidence, and durable restoration intent after an
+ambiguous read and restart. All 48 native tests pass, including four tests for
+the lifetime test-profile lease. Typecheck, Rust formatting, Prettier and diff
+whitespace checks pass. A clean `npm.cmd ci` succeeds with zero vulnerabilities.
+Both browser suites were rerun successfully after the core fixes.
+
+The final optimized rebuild completed in 4m49s and produced a fresh executable
+and NSIS installer. Process 18244 ran that executable directly, passed all 30
+packaged checks, and completed a live Codex smoke returning no-change with
+9,524 input / 224 output tokens (166 reasoning output tokens), in 8,432 ms.
+This smoke used synthetic evidence and inserted no usage record. Actual task
+reviews and their token telemetry remain separately recorded in lifecycle state.
+
+A second process for the same test profile exited with code 101 and the expected
+exclusive-profile diagnostic; process 18244 remained the only running instance.
+The close-guard test controlled confirmation answers to avoid competing CDP dialog
+handlers, while using actual native window IPC and disk reads. Declining closure
+preserved an unsaved draft, explicit discard reloaded unchanged source, and the
+final Close action destroyed the WebView. The OS process was confirmed absent.
+New process 45188 then reopened the same profile and passed the 30 packaged
+checks again, retaining all five imported reports, three review decisions, both
+restorations, settings and original source bytes. It was closed normally afterward.
+The missing main-window destroy permission discovered during the earlier close
+attempt is fixed; duplicate test-profile launches now hold an OS lifetime lease.
+
+Artifacts and hashes are in the dedicated build directory described in
+[the handoff](IMPLEMENTATION_HANDOFF.md). The NSIS installer was built but never
+run. No installed copy was replaced. Physical power-loss durability and
+cross-platform publication remain uncertified. Token telemetry is recorded where
+available; monetary cost and savings are unavailable and were not inferred.
+The isolated profile remains Off, with two subsequent task observations pending
+below the restored threshold of five. There are no remaining release blockers
+within the documented v1 scope.
+
+Current commands are `npm.cmd run typecheck`, `npm.cmd test`,
+`npm.cmd run build`, `npm.cmd run desktop:test` and
+`npm.cmd run desktop:build`. `npm.cmd run test:live` is separate and can consume
+account usage. The opt-in reporter is
+`npm.cmd run report:use -- --profile <absolute initialized profile> --input <report.json>`;
+it never enables recording or changes policy on an agent's behalf.
+
+## Historical personal workbench — 2026-10-18
+
+Commands used for this historical milestone: `npm test`, `npm run build`, `npm run desktop:test`,
 `tests/workbench-browser.cjs` and read-only `tests/workbench-native.cjs`.
 The older tests named below belong to the retired JSON UI and have been replaced.
 
@@ -41,7 +198,12 @@ The older tests named below belong to the retired JSON UI and have been replaced
 
 The September records below are historical and do not describe this milestone.
 
-### Reproduce native IPC writes safely
+### Historical manual native IPC fixture
+
+This fixture used child-only `USERPROFILE`/AppData overrides before the current
+explicit improvement profile contract. For the current feature demonstration use
+`SKILLS_DASH_TEST_PROFILE` and an initialized profile as described above; do not
+redirect ordinary app data with these historical overrides.
 
 First build/run with `npm run desktop`, close that app, then run `npm run dev`.
 Keep Vite running. In another PowerShell from the repository, create only the

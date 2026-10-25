@@ -12,7 +12,10 @@
     "tauri": "tauri",
     "desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 dev",
     "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 build",
-    "desktop:test": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 test"
+    "desktop:test": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/desktop.ps1 test",
+    "profile:init": "tsx scripts/init-improvement-profile.ts",
+    "report:use": "tsx scripts/report-use.ts",
+    "test:live": "tsx scripts/live-reviewer-smoke.ts"
   },
   "dependencies": {
     "@fontsource/anton": "^5.2.7",
@@ -32,8 +35,9 @@
     "@vitejs/plugin-react": "5.0.4",
     "axe-core": "4.11.1",
     "prettier": "3.6.2",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vite": "7.3.6",
-    "vitest": "4.1.11"
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
   }
 }

@@ -1,5 +1,22 @@
 # Design contract
 
+## Improvement extension — October 24, 2026
+
+The opt-in lifecycle uses the existing ruled paper dossier and one settings
+dialog. It does not add a dashboard/card grid. Diff additions/removals use both
+text markers and restrained background colors. Status is stated in text;
+observation evidence, model rationale and validation have distinct labels.
+Native form controls have explicit labels, visible focus, narrow layouts and
+the existing independently reduced effects/motion behavior.
+
+Small labels retain readable sizes at narrow widths. Healthy file rows use muted
+neutral status text; attention states use the warm warning tint and explicit issue
+counts. Focus uses the bright red print plate on ink and a darker red on paper,
+with at least 3:1 contrast against the surrounding surface. Paper forms use native
+light controls. Dialog headers stay visible while their contents scroll.
+The path header uses a plain Skills folder label, grouped actions and a compact
+two-column toolbar at narrow widths; the native window controls remain separate.
+
 ## Personal workbench revision — October 18, 2026
 
 Current layout: one root/path header, searchable ruled file list and paper

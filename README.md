@@ -6,6 +6,13 @@ authoritative. React, TypeScript, Vite and Tauri remain the existing stack.
 
 ## Current milestone
 
+The feature branch `feature/skill-improvement-v1` adds an opt-in evidence-to-review
+lifecycle with Codex CLI proposals, registered pilot behavior checks, checked
+publication and recovery. Start with an isolated profile; see
+[setup and integration](docs/IMPROVEMENT_V1.md) and
+[handoff](docs/IMPLEMENTATION_HANDOFF.md). The original archive's `v1` branch is
+separate from this feature release.
+
 Directory discovery, search, metadata inspection, validation, supporting-file
 inventory, raw editing, checked per-file saves and recovery export are implemented.
 Malformed and inaccessible skills remain visible. Saves use the approved
@@ -15,9 +22,11 @@ Previous content and the draft are retained independently. See [project state](d
 [migration contract](docs/WORKBENCH_MIGRATION.md).
 
 The app manages one personal root. It does not include plugin/system skill roots,
-execute agents or scripts, edit supporting files, create/delete skill folders, or
+edit supporting files, create/delete skill folders, or
 automatically migrate legacy archives. It uses the existing app identifier and
 installer name, Skill Archive, to preserve app-data continuity.
+Opt-in improvement invokes a restricted Codex reviewer. Imported skill text and
+supporting scripts remain inert data.
 
 The interface has a root header, searchable file list and paper dossier/editor.
 Ctrl/Cmd+K or `/` focuses search; arrows/Home/End move through list buttons;
@@ -31,46 +40,50 @@ Requires Node 22.12+, npm and, for desktop, Rust MSVC, Microsoft C++ Build Tools
 and WebView2. The desktop scripts activate the existing Windows compiler.
 
 ```powershell
-npm ci
-npm run dev
+npm.cmd ci
+npm.cmd run dev
 ```
 
 Browser mode at `http://127.0.0.1:1420` has no filesystem access and creates no
 starter data. Stop its server before starting the desktop dev command:
 
 ```powershell
-npm run desktop
-npm run typecheck
-npm test
-npm run build
-npm run desktop:test
+npm.cmd run profile:init -- my-demo
+$env:SKILLS_DASH_TEST_PROFILE = (Resolve-Path .\output\profiles\my-demo).Path
+npm.cmd run desktop
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
+npm.cmd run desktop:test
 ```
 
-`npm run desktop:build` produces an executable and NSIS installer. Packaging and
-installed-copy behavior need separate verification for this milestone; historical
-installers do not contain these source changes. Use development mode for review.
+`npm.cmd run desktop:build` produces a standalone executable and NSIS installer.
+The fresh executable was run directly against an isolated profile; no installer
+was run and the installed application was not replaced. See the
+[handoff](docs/IMPLEMENTATION_HANDOFF.md) for artifact paths and verification.
 
 Browser QA uses the Playwright CLI with isolated contexts. Fixtures live only in
 test code; they do not prove native integration:
 
 ```powershell
-npx --yes --package @playwright/cli playwright-cli -s=workbench open http://127.0.0.1:1420 --browser chrome
-npx --yes --package @playwright/cli playwright-cli -s=workbench run-code --filename tests/workbench-browser.cjs
+npx.cmd --yes --package @playwright/cli playwright-cli -s=workbench open http://127.0.0.1:1420 --browser chrome
+npx.cmd --yes --package @playwright/cli playwright-cli -s=workbench run-code --filename tests/workbench-browser.cjs
+npx.cmd --yes --package @playwright/cli playwright-cli -s=workbench run-code --filename tests/improvement-browser.cjs
+npx.cmd --yes --package @playwright/cli playwright-cli -s=workbench run-code --filename tests/header-browser.cjs
 ```
 
-`tests/workbench-native.cjs` attaches to a development WebView debug port 9233 for
-read-only actual-root checks. `tests/workbench-native-write.cjs` refuses to run
-outside the isolated `output/native-ipc-profile/.agents/skills` fixture. Launch
-the native executable with `USERPROFILE` overridden only for that process to the
-disposable profile while the dev server runs. Also set its process-only `APPDATA`
-and `LOCALAPPDATA` to existing `AppData\Roaming` and `AppData\Local` directories
-under that profile; Windows known-folder lookup otherwise fails. The test uses production commands;
-no alternate-root API is added. Enable the port only in the QA process with
-`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9233`; it is not
-enabled in app configuration. Native unit tests use disposable ignored fixtures,
-including deliberate junctions. Vite ignores those fixtures and never follows
-their links. Keep CLI snippets as bare function expressions, outside Prettier.
-The fixture setup commands are in [verification](docs/VERIFICATION.md).
+Current native tests select `SKILLS_DASH_TEST_PROFILE`; do not redirect
+USERPROFILE, APPDATA or LOCALAPPDATA. The staged `tests/improvement-native-*.cjs`
+and `tests/improvement-packaged.cjs` scripts attach to QA port 9237 and refuse
+the ordinary personal profile. Their cycle fixture includes actual agent tasks
+and live model results, so they are not substitutes for routine unit tests.
+Enable `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9237` only
+for that test process. The port is not enabled in app configuration. Older
+`workbench-native*.cjs` scripts remain historical fixtures; use the current
+[verification instructions](docs/VERIFICATION.md) and handoff for this feature.
+Native unit tests use disposable ignored fixtures, including deliberate junctions.
+Vite ignores those fixtures and never follows their links. Keep CLI snippets as
+bare function expressions, outside Prettier.
 
 ## Legacy data and recovery
 

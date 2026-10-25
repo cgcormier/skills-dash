@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Main local window: bounded personal skill commands, legacy archive reads and window controls. No general filesystem or shell plugin permissions.",
+  "description": "Main local window: fixed-root skills, bounded lifecycle storage, isolated Codex review, legacy reads and window controls. Destroy completes the existing unsaved-change Close handler for this main window. No general filesystem or shell plugin permissions.",
   "windows": ["main"],
   "permissions": [
     "core:window:allow-close",
+    "core:window:allow-destroy",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:window:allow-minimize",

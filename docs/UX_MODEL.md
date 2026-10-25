@@ -2,12 +2,35 @@
 
 The workbench manages real personal skill folders under one root. It opens with
 the path header, search and an unselected file list. There is no starter
-collection, category rail, Atlas, Posters, lifecycle control or agent run button.
+collection, category rail, Atlas or Posters. Opt-in improvement settings and a
+selected-skill improvement section extend the workbench.
 Legacy archive recovery is a separate explicit surface.
+
+## Improvement extension
+
+Global settings contain the master switch, default mode, distinct-use threshold,
+daily review limit, timeout and verified reviewer model. The initial switch is Off;
+the initial activation mode is Propose. The dossier has an inheritable override,
+effective mode, pending evidence, exact review coverage, proposed diff, validation
+and explicit approval/rejection/cancellation/retry/restoration actions. Reports,
+suggestions and model rationale are visibly distinct. Errors remain visible.
+Dirty editor drafts disable manual apply/restore; automatic publication marks a
+loaded editor revision stale without discarding it. Settings contain keyboard
+focus and return focus on close. Their title and close control remain visible
+while scrolling; keyboard focus stays below the pinned header. The effective mode
+and reviewer rationale are explicitly labeled. All controls fit the narrow dossier.
+
+The profile path is visible for isolated tests. Browser mode explains its missing
+native access instead of creating an operational fake lifecycle. Review work runs
+only while the desktop is open; the reporter can leave durable pending evidence
+while it is closed. See [IMPROVEMENT_V1.md](IMPROVEMENT_V1.md).
 
 ## Interaction contract
 
 - Search matches folder/path, name, description and raw instructions/metadata.
+  The count names the total skills and shows matches when filtered. Clear search
+  restores the full list and returns focus to the search field, including when
+  there are no matches.
 - All discovered directories remain visible, including missing/inaccessible
   `SKILL.md` entries. Validation and read errors explain what needs attention.
 - Selection reads a fresh disk revision. Request tickets prevent older async

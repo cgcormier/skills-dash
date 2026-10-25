@@ -8,11 +8,14 @@ use std::{
     path::{Path, PathBuf},
 };
 use tauri::Manager;
+mod lifecycle;
+mod profile;
+mod reviewer;
 mod skills;
 
 const LIMIT: u64 = 5 * 1024 * 1024;
 fn directory(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app.path().app_data_dir().map_err(|e| e.to_string())
+    profile::data_dir(app)
 }
 
 // Explicit legacy bridge: return original text even if its JSON/schema is bad.
@@ -60,23 +63,63 @@ fn read_legacy_raw(path: &Path) -> Result<Option<String>, String> {
 }
 
 fn main() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+    // Invalid explicit profiles fail before any ordinary app window or storage
+    // is opened. Test instances never contact/focus the installed normal app.
+    let test_profile = profile::test_profile()
+        .expect("Invalid SKILLS_DASH_TEST_PROFILE; ordinary profile was not opened");
+    // Held in main's scope until the blocking app event loop exits. Each test
+    // profile gets its own lease; production retains the existing plugin.
+    let _test_profile_lease = test_profile
+        .as_deref()
+        .map(profile::acquire_test_session_lease)
+        .transpose()
+        .expect("Could not acquire the test profile session; no app window was opened");
+    let mut context = tauri::generate_context!();
+    let mut test_windows = vec![];
+    if test_profile.is_some() {
+        for window in &mut context.config_mut().app.windows {
+            test_windows.push(window.clone());
+            window.create = false;
+        }
+    }
+    let mut builder = tauri::Builder::default().manage(reviewer::Reviewers::default());
+    if test_profile.is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
                 let _ = window.show();
                 let _ = window.set_focus();
             }
-        }))
+        }));
+    }
+    builder
+        .setup(move |app| {
+            if let Some(profile) = &test_profile {
+                let webview = profile.join("webview");
+                let _guards =
+                    skills::create_guarded_directories(&webview).map_err(std::io::Error::other)?;
+                for window in &test_windows {
+                    tauri::WebviewWindowBuilder::from_config(app, window)?
+                        .data_directory(webview.clone())
+                        .build()?;
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             read_legacy_archive,
             skills::discover_skills,
             skills::read_skill,
             skills::save_skill,
             skills::list_skill_recoveries,
-            skills::read_skill_recovery
+            skills::read_skill_recovery,
+            profile::lifecycle_profile,
+            lifecycle::lifecycle_read,
+            lifecycle::lifecycle_write,
+            reviewer::reviewer_start,
+            reviewer::reviewer_cancel
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("Could not start personal skills workbench");
 }
 

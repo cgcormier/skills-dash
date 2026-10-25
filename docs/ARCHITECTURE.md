@@ -1,5 +1,45 @@
 # Architecture
 
+## Skill improvement v1 extension
+
+The feature worktree adds a separate opt-in lifecycle. Pure TypeScript owns
+effective policy, evidence consolidation, eligibility, immutable review snapshots,
+validation, publication decisions and reconciliation. Rust owns bounded profile,
+filesystem CAS and Codex process operations. React consumes the engine through
+the replaceable native adapter. Detailed contracts and module ownership are in
+[IMPROVEMENT_V1.md](IMPROVEMENT_V1.md).
+
+New bounded commands are `lifecycle_profile`, `lifecycle_read`,
+`lifecycle_write`, `reviewer_start` and `reviewer_cancel`. The reporter writes
+immutable inbox records; only the app engine writes versioned lifecycle state.
+The existing checked-save/recovery commands remain the sole source publisher.
+No reviewer-provided command is executed. Native reviewer code uses a fixed
+Codex executable/flags, a bounded snapshot/schema, timeout/cancellation and a
+Windows process job. These OS capabilities are necessary for closed-app reporting,
+durable state and local CLI integration; no general shell/HTTP/filesystem plugin
+is introduced.
+
+`SKILLS_DASH_TEST_PROFILE` selects an explicitly marked test directory and isolates
+skill/recovery/lifecycle/legacy/WebView storage. Without it, the original fixed
+personal root and application identity below are preserved. This test mechanism
+does not add production multi-root discovery. The original history ledger is not
+read, rewritten, migrated or combined with the new lifecycle.
+
+A guarded exclusive OS handle holds the test-profile session lease for the
+application lifetime. Two test profiles can run independently; two engines cannot
+open the same test profile. The ordinary profile keeps its existing single-instance
+plugin. The main window's narrowly scoped destroy permission completes Tauri's
+existing `onCloseRequested` guard after it permits a close; it grants no file or
+process execution capability.
+
+Cancellation asks the runner to stop even when lifecycle persistence is blocked.
+The original storage error remains visible until a successful reload. Invalid
+proposals retain pending evidence across retries. Publication journals carry an
+optional publish/restore operation discriminator so ambiguous recovery retains
+its intent across restart, without migrating the separate history ledger.
+
+The following sections describe the retained base workbench behavior.
+
 ## Authority and ownership
 
 Personal skill folders are authoritative. Native code resolves the sole root from
