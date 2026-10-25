@@ -1,5 +1,41 @@
 # Project state
 
+## Main integration - October 25, 2026
+
+The primary checkout is `C:\Users\ccorm\skills-dash` on `main`. It now includes
+the published workbench migration `e6b81b1` and the previously uncommitted
+improvement/UI implementation, committed as `429c3d9`. Both integrations were
+fast-forwards. The feature checkout is clean and remains available; all other
+branches, worktrees, ignored artifacts and persistent personal data are preserved.
+The pre-integration relocation note is retained in [LOCAL_GIT_LAYOUT.md](LOCAL_GIT_LAYOUT.md)
+and a named Git stash. Earlier milestone sections below are historical.
+
+Fresh integration checks passed: 59 frontend tests, 48 native tests, production
+web build/typecheck, and a clean dependency installation with zero reported
+vulnerabilities. The three browser suites passed 42/34/35 assertions. A fresh
+Windows release executable and NSIS installer were built from this checkout.
+The standalone executable passed 30 packaged checks, duplicate-profile refusal,
+three close-guard checks and a live reviewer smoke. The installer completed in
+update mode; its installed executable passed the same 30 checks after process
+restart, three close-guard checks, nine isolated native save/conflict/recovery/
+export checks and 11 read-only checks against all 25 actual personal skill folders.
+Both legacy archive files remain byte-identical to their pre-install backups.
+
+The installed payload differs from the standalone executable only in Tauri's
+three-byte bundle marker (`UNK` to `NSS`). Exact hashes and application Git tree
+IDs are recorded in ignored `output/integration-20261025/build-receipt.json`.
+The application source is unchanged from `429c3d9`; the integration follow-up
+changes documentation only. Remote publication is confirmed by Git refs in the
+final handoff. No personal skill was edited and no worktree was removed.
+
+Skill audit: not applicable; the integration and bundle-marker findings are
+project-specific verification facts captured in these docs. Skill file: none.
+The optional audit/history helper became unavailable, so the audit was completed
+manually and its absence logged through the missing-skill workflow. Existing
+checks and ignored QA snippets were reused rather than adding maintained tooling.
+
+## Historical feature milestone - October 24, 2026
+
 Updated October 24, 2026. The current implementation is on
 `feature/skill-improvement-v1`, based on `develop` commit
 `e6b81b16e42a5fd5e2ab2bc4bf386b9877949ee4`, in the relocated isolated worktree

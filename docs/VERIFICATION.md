@@ -1,5 +1,71 @@
 # Verification record
 
+## Main integration and installed update - 2026-10-25
+
+The published `simplified` commit `e6b81b1` and existing improvement/UI work
+(`429c3d9`) were integrated into the primary `main` checkout through fast-forwards.
+The feature checkout is clean; other worktrees and ignored data remain in place.
+The local relocation note was preserved in `LOCAL_GIT_LAYOUT.md`, an ignored
+original-file backup and named stash `46046aceacea453f91c6d82f5240368803dc9b7c`.
+
+- Same application source: 59 frontend tests and 48 native tests passed before
+  integration. Production web build/typecheck passed there and again during the
+  fresh primary-checkout desktop build. Rust formatting and Git whitespace checks
+  passed. `npm.cmd ci` installed 108 packages and reported zero vulnerabilities.
+- Isolated browser checks: 42 workbench, 34 improvement and 35 header assertions
+  passed, including keyboard/focus, 375/390/768/1440px layouts, independent reduced
+  effects/motion, conflicts/recovery, and zero axe violations in checked states.
+  Narrow and desktop screenshots were inspected. The QA server used port 1421
+  because a separate older checkout occupied 1420. Ignored copies of the existing
+  browser snippets changed only the origin; the production server contract stays
+  1420. CLI snippets were kept as bare functions and were not formatted.
+- `npm.cmd run desktop:build` compiled the primary checkout and produced a fresh
+  optimized executable and NSIS installer. Native compilation took 8m06s with
+  the fresh primary build cache. No historical executable was substituted.
+- The standalone executable passed all 30 packaged assertions using the retained
+  marked cycle profile. Five imported observations, three review outcomes and
+  exact restored skill bytes were retained. A duplicate process exited 101 while
+  the original remained active. Three actual close-guard assertions passed and
+  the OS process was confirmed absent after the WebView closed.
+- Live native reviewer smoke passed with `gpt-6.1-sol` / `ultra`, returning
+  `no-change` in 12,547ms (8,703 input / 263 output tokens, including 203 reasoning
+  output tokens). Its synthetic evidence was not inserted as a task-use report.
+- All app processes were closed before the installer ran with `/S /UPDATE`.
+  The generated NSIS update path was inspected: update mode skips uninstall and
+  app-data deletion. The installer exited 0. The original installed executable
+  and both native legacy JSON files were backed up under the ignored integration
+  directory before installation.
+- The installed executable passed the same 30 packaged checks in a new process,
+  confirming persistence after shutdown and installation. Its three close-guard
+  assertions passed, and that process was confirmed closed.
+- A separate fresh marked profile passed nine real installed-WebView checks:
+  checked save, reload, CRLF/supporting-file preservation, previous/draft recovery,
+  recovery export, stale-write refusal and draft retention. Its fixture was
+  restored, and its legacy primary/backup bytes remained unchanged.
+- The installed ordinary profile passed 11 read-only actual-WebView assertions:
+  all 25 personal folders discovered, raw content/path/supporting inventory read
+  through IPC, unchanged content, checked-save policy and legacy recovery surface.
+  No installed personal skill was edited. Both ordinary legacy files were compared
+  byte-for-byte with pre-install backups and were unchanged.
+
+The standalone executable SHA-256 is
+`ed3183e2465d0656dc58e305cb898ed07208fb1b9861b0fab5aa44853775ef11`.
+The installed executable SHA-256 is
+`b5473eca48fa811fc0f3d9fb7db558f84c19c6fb67f08fd6d5afbd5a8b743358`.
+They are both 6,884,352 bytes. Comparing every byte shows exactly three differences
+at offsets 5,554,176-5,554,178: Tauri's `__TAURI_BUNDLE_TYPE_VAR_UNK` marker becomes
+`__TAURI_BUNDLE_TYPE_VAR_NSS` in the NSIS payload. Replacing that marker in memory
+makes the entire byte arrays equal; executable code and all remaining bytes match.
+The NSIS installer SHA-256 is
+`ccb10510c5fcec6116fe0ec7ed563211937e8325280bf6ae831780df07aaa075`.
+
+The local-only build receipt, application Git tree IDs, result logs, original
+backups and QA copies are under ignored `output/integration-20261025/`.
+The final follow-up changes documentation only; application tree identity is
+checked before publication. Physical window drag/resize, Windows sign-out/restart,
+power-loss certification and cross-platform behavior were not added to this scope.
+Earlier sections below remain historical and retain their original limitations.
+
 ## Small UI refinements - 2026-10-24
 
 After the feature checks below, the presentation pass passed typecheck, the 59-test

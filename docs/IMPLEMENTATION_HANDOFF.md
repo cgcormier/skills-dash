@@ -1,13 +1,12 @@
-# Skill improvement v1 — local handoff
+# Personal workbench - main handoff
 
-The implementation lives on `feature/skill-improvement-v1` in
-`C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1`.
-Its baseline and current Git HEAD are
-`e6b81b16e42a5fd5e2ab2bc4bf386b9877949ee4` (`develop`, verified equal to
-the retained `v2`/`simplified` implementation at preflight). The feature changes
-are local and uncommitted. This release is unrelated to the preserved archive
-branch named `v1`. No shared branch was merged or pushed, no installer was run,
-and no installed application was replaced.
+The current integration checkout is `C:\Users\ccorm\skills-dash` on `main`.
+It contains the `simplified` migration `e6b81b1` and improvement/UI commit
+`429c3d9`, integrated through fast-forwards on October 25, 2026. The retained
+feature checkout is clean. This release is unrelated to the preserved archive
+branch named `v1`. Current build, installation and publication results are in
+[project state](PROJECT_STATE.md) and [verification](VERIFICATION.md); the
+October 24 cycle and dedicated artifact handoff below are historical evidence.
 
 Ownership is split across pure TypeScript lifecycle/policy/validation in
 `src/improvement`, guarded Windows adapters in `src-tauri/src`, the reporter in
@@ -17,10 +16,11 @@ intact. Nothing was built or implemented in `C:\Users\ccorm\repos\skills-dash`.
 
 ## Run and alter it
 
-All commands below run from this checkout in PowerShell:
+Development commands run from the primary checkout in PowerShell. The retained
+cycle-profile path in the historical verification section is deliberately unchanged.
 
 ```powershell
-Set-Location C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1
+Set-Location C:\Users\ccorm\skills-dash
 npm.cmd ci
 npm.cmd run profile:init -- my-first-improvement-demo
 $env:SKILLS_DASH_TEST_PROFILE = (Resolve-Path .\output\profiles\my-first-improvement-demo).Path
@@ -43,8 +43,8 @@ The agent must hash the exact SKILL.md it loaded, finish its task, write the v1
 JSON report, then run:
 
 ```powershell
-Set-Location C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1
-npm.cmd run report:use -- --profile C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1\output\profiles\my-first-improvement-demo --input C:\absolute\task-report.json
+Set-Location C:\Users\ccorm\skills-dash
+npm.cmd run report:use -- --profile C:\Users\ccorm\skills-dash\output\profiles\my-first-improvement-demo --input C:\absolute\task-report.json
 ```
 
 This works while the app is closed, once settings have explicitly enabled that
@@ -58,7 +58,7 @@ ordinary-profile option is `--profile personal`.
 Routine checks never call a model:
 
 ```powershell
-Set-Location C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1
+Set-Location C:\Users\ccorm\skills-dash
 npm.cmd run typecheck
 npm.cmd test
 npm.cmd run build
@@ -83,11 +83,10 @@ login. The verified CLI is 0.164.0. Check authentication without reading credent
 
 Live smoke is separately invoked and consumes account usage. Launch the freshly
 built executable directly with the explicit profile and QA port, then run smoke
-from another terminal. `Start-Process` is only for this test executable, never
-the installer:
+from another terminal. Installing an update is a separate step:
 
 ```powershell
-Set-Location C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1
+Set-Location C:\Users\ccorm\skills-dash
 $env:SKILLS_DASH_TEST_PROFILE = (Resolve-Path .\output\profiles\my-first-improvement-demo).Path
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9237'
 $testProcess = Start-Process -FilePath .\src-tauri\target\release\skill-archive.exe -WindowStyle Hidden -PassThru
@@ -95,8 +94,8 @@ $testProcess.Id
 ```
 
 ```powershell
-Set-Location C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1
-npm.cmd run test:live -- --profile C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1\output\profiles\my-first-improvement-demo --port 9237
+Set-Location C:\Users\ccorm\skills-dash
+npm.cmd run test:live -- --profile C:\Users\ccorm\skills-dash\output\profiles\my-first-improvement-demo --port 9237
 ```
 
 The smoke checks the native profile and runner with synthetic no-defect evidence;
@@ -106,7 +105,7 @@ The QA port is never enabled by production configuration. Remove the process-loc
 Do not redirect USERPROFILE, APPDATA or LOCALAPPDATA. Run only one process per
 test profile, and verify the old PID exited when testing restart.
 
-## Verified cycle and artifacts
+## Historical verified cycle and artifacts - October 24, 2026
 
 The cycle profile is
 `C:\Users\ccorm\skills-dash-worktrees\feature-skill-improvement-v1\output\profiles\cycle-v1`.
@@ -120,13 +119,13 @@ previous bytes while preserving recovery copies. The profile is left Off with
 history retained. Fixture, native, live-model and packaged evidence are separated
 in [the verification record](VERIFICATION.md).
 
-Fresh build outputs:
+Current primary-checkout build outputs:
 
 - `src-tauri/target/release/skill-archive.exe`
 - `src-tauri/target/release/bundle/nsis/Skill Archive_0.1.0_x64-setup.exe`
 - `dist/` for the frontend bundle.
 
-Dedicated handoff:
+Historical dedicated handoff:
 `C:\Users\ccorm\skills-dash-worktrees\builds\skill-improvement-v1\20261024T222238Z-local`.
 Its manifest records the branch, baseline/HEAD, uncommitted source file hashes,
 commands, artifact hashes and verification. The source ZIP includes tracked and

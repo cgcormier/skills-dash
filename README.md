@@ -57,10 +57,11 @@ npm.cmd run build
 npm.cmd run desktop:test
 ```
 
-`npm.cmd run desktop:build` produces a standalone executable and NSIS installer.
-The fresh executable was run directly against an isolated profile; no installer
-was run and the installed application was not replaced. See the
-[handoff](docs/IMPLEMENTATION_HANDOFF.md) for artifact paths and verification.
+`npm.cmd run desktop:build` produces a standalone executable and NSIS installer
+from the current checkout. `main` includes the file-backed workbench and opt-in
+improvement lifecycle. See the [handoff](docs/IMPLEMENTATION_HANDOFF.md) and
+[project state](docs/PROJECT_STATE.md) for current artifact, installation and
+verification results; historical verification is labeled separately.
 
 Browser QA uses the Playwright CLI with isolated contexts. Fixtures live only in
 test code; they do not prove native integration:

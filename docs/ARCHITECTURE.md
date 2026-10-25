@@ -2,7 +2,7 @@
 
 ## Skill improvement v1 extension
 
-The feature worktree adds a separate opt-in lifecycle. Pure TypeScript owns
+The workbench includes a separate opt-in lifecycle. Pure TypeScript owns
 effective policy, evidence consolidation, eligibility, immutable review snapshots,
 validation, publication decisions and reconciliation. Rust owns bounded profile,
 filesystem CAS and Codex process operations. React consumes the engine through
